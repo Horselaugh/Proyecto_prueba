@@ -1,4 +1,4 @@
-from funcion_base_de_datos_fami import coneccion_db as conec_db, cerrar_coneccion_db as cerrar_db
+from funcion_base_de_datos import coneccion_db as conec_db, cerrar_coneccion_db as cerrar_db
 
 def crear(primer_nombre, primer_apellido, parentesco_id, direccion, telefono, segundo_nombre=None, segundo_apellido=None, tutor=False):
     # Validaciones

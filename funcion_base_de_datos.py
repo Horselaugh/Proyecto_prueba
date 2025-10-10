@@ -7,5 +7,3 @@ def coneccion_db():
 
 def cerrar_coneccion_db(conectar):
     conectar.close()
-    print("Conexión cerrada con éxito.")  # Mensaje de cierre de conexión
-

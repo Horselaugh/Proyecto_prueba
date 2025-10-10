@@ -1,4 +1,4 @@
-from funcion_base_de_datos_UE import coneccion_db as conec_db, cerrar_coneccion_db as cerrar_db
+from funcion_base_de_datos import coneccion_db as conec_db, cerrar_coneccion_db as cerrar_db
 
 def crear(nombre, director, tipo, telefono, direccion):
     
