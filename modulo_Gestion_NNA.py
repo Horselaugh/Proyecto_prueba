@@ -20,7 +20,7 @@ def crear(primer_nombre, primer_apellido, fecha_nacimiento, genero, direccion, t
         
         # Primero insertar en persona
         cursor.execute('''
-            INSERT INTO persona (
+            INSERT INTO persona.nna (
                 documento_identidad, primer_nombre, segundo_nombre, 
                 primer_apellido, segundo_apellido, genero, direccion, telefono
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 

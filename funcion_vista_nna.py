@@ -4,7 +4,7 @@ from modulo_Gestion_NNA import crear, leer, actualizar, eliminar
 
 def mostrar_resultado(ventana, resultado):
     ventana_resultado = CTkToplevel(ventana)
-    ventana_resultado.geometry("1000x600")
+    ventana_resultado.geometry("800x600")
     ventana_resultado.title("📋 Resultado de la Operación")
     ventana_resultado.configure(fg_color="#1e1e1e")
     

@@ -4,7 +4,7 @@ from modulo_gestion_matricula import crear, leer, actualizar, eliminar
 
 def mostrar_resultado(ventana, resultado):
     ventana_resultado = CTkToplevel(ventana)
-    ventana_resultado.geometry("1000x600")
+    ventana_resultado.geometry("800x600")
     ventana_resultado.title("📋 Resultado de la Operación")
     ventana_resultado.configure(fg_color="#1e1e1e")
     
@@ -31,7 +31,7 @@ def main():
     ventana.geometry("1400x900")
     ventana.title("🎓 Gestión de Matrículas Educativas")
     ventana.configure(fg_color="#1e1e1e")
-    
+
     # Centrar contenido
     frame_principal = CTkFrame(ventana, fg_color="transparent")
     frame_principal.pack(expand=True, fill="both", padx=80, pady=80)

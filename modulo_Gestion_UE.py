@@ -15,7 +15,7 @@ def crear(nombre, director, tipo, telefono, direccion):
         conn = conec_db()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO unidad_educativa (nombre, director, tipo, telefono, direccion) 
+            INSERT INTO matricula_educativa (nombre, director, tipo, telefono, direccion) 
             VALUES (?, ?, ?, ?, ?)''',
             (nombre, director, tipo.upper(), telefono, direccion))
         
@@ -34,14 +34,14 @@ def leer(id=None, nombre=None, tipo=None):
         cursor = conn.cursor()
         
         if id:
-            cursor.execute('SELECT * FROM unidad_educativa WHERE id = ?', (id,))
+            cursor.execute('SELECT * FROM matricula_educativa WHERE id = ?', (id,))
         elif nombre and tipo:
             cursor.execute('''
-                SELECT * FROM unidad_educativa
+                SELECT * FROM matricula_educativa
                 WHERE nombre = ? AND tipo = ?''', 
                 (nombre, tipo.upper()))
         elif nombre:
-            cursor.execute('SELECT * FROM unidad_educativa WHERE nombre = ?', (nombre,))
+            cursor.execute('SELECT * FROM matricula_educativa WHERE nombre = ?', (nombre,))
         else:
             return {"error": "Se necesita ID, nombre o nombre y tipo", "status": "error"}
         
@@ -86,7 +86,7 @@ def actualizar(id, nombre=None, director=None, tipo=None, telefono=None, direcci
         conn = conec_db()
         cursor = conn.cursor()
         cursor.execute(f'''
-            UPDATE unidad_educativa 
+            UPDATE matricula_educativa 
             SET {set_clause} 
             WHERE id = ?''', params)
         
@@ -105,12 +105,12 @@ def eliminar(id):
         cursor = conn.cursor()
         
         # Verificar existencia
-        cursor.execute('SELECT * FROM unidad_educativa WHERE id = ?', (id,))
+        cursor.execute('SELECT * FROM matricula_educativa WHERE id = ?', (id,))
         if not cursor.fetchone():
             return {"error": "No existe unidad educativa con ese ID", "status": "error"}
         
         # Eliminar
-        cursor.execute('DELETE FROM unidad_educativa WHERE id = ?', (id,))
+        cursor.execute('DELETE FROM matricula_educativa WHERE id = ?', (id,))
         conn.commit()
         return {"status": "success", "message": "Unidad educativa eliminada correctamente"}
     except Exception as e:
