@@ -1,4 +1,4 @@
-from funcion_conexion_database import Database
+from funcion_conexion_personal import Database
 from sqlite3 import Error
 
 class PersonalModel:
