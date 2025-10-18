@@ -1,17 +1,18 @@
-from sqlite3 import Error, IntegrityError
-from typing import List, Dict, Optional
-
 # models/personal_model.py
 import sys
 import os
-# Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from sqlite3 import Error, IntegrityError
 from typing import List, Dict, Optional
 
-# Ahora importa el módulo database_connector
-from database_connector import Database
+# Agregar el directorio actual al path para importar database_connector
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from database_connector import Database
+except ImportError:
+    # Si falla, intentar importación absoluta
+    from models.database_connector import Database
+
 
 class PersonalModel:
     """Modelo para gestionar las operaciones de Personal en la base de datos"""

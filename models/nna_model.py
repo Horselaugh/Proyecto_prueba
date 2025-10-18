@@ -1,7 +1,16 @@
+import sys
+import os
 from sqlite3 import Error, IntegrityError
 from typing import List, Dict, Optional
 
-from database_connector import Database
+# Agregar el directorio actual al path para importar database_connector
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from database_connector import Database
+except ImportError:
+    # Si falla, intentar importación absoluta
+    from models.database_connector import Database
 
 class NNAModel:
     """Modelo para gestionar las operaciones de NNA (Niños, Niñas y Adolescentes) en la base de datos"""

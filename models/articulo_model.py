@@ -1,12 +1,14 @@
 import sys
 import os
-# Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from typing import List, Dict, Optional
 
-import sqlite3
-from sqlite3 import Row
-from typing import List, Optional
-from models.database_connector import Database  # Cambiar a nuestro Database
+# Agregar el directorio actual al path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from database_connector import Database
+except ImportError:
+    from models.database_connector import Database
 
 class ArticuloModelo:
     """
@@ -17,28 +19,29 @@ class ArticuloModelo:
     
     def insertar_articulo(self, codigo: str, articulo: str, descripcion: str) -> Optional[int]:
         """Inserta un artículo y retorna su ID"""
-        query = "INSERT INTO articulos (codigo, articulo, descripcion) VALUES (?, ?, ?)"
+        query = "INSERT INTO articulos (codigo, articulo, descripcion) VALUES (%s, %s, %s)"
+        conexion = None
         try:
             conexion = self.db.crearConexion()
             if not conexion:
                 return None
                 
-            with conexion:
-                cursor = conexion.cursor()
+            with conexion.cursor() as cursor:
                 cursor.execute(query, (codigo, articulo, descripcion))
+                conexion.commit()
                 return cursor.lastrowid
                 
-        except sqlite3.IntegrityError as e:
-            print(f"Advertencia: Artículo {codigo} ya existe. {str(e)}")
-            return None
-        except sqlite3.Error as e:
-            print(f"Error al insertar artículo {codigo}: {str(e)}")
+        except Exception as e:
+            if hasattr(e, 'errno') and e.errno == 1062:  # Error de duplicado en MySQL
+                print(f"Advertencia: Artículo {codigo} ya existe. {str(e)}")
+            else:
+                print(f"Error al insertar artículo {codigo}: {str(e)}")
             return None
         finally:
             if conexion:
                 self.db.cerrarConexion(conexion)
 
-    def obtener_todos_los_articulos(self) -> List[Row]:
+    def obtener_todos_los_articulos(self) -> List[Dict]:
         """
         Retorna todos los artículos para llenar la lista en la vista
         """
@@ -51,25 +54,25 @@ class ArticuloModelo:
             FROM articulos
             ORDER BY codigo, articulo
         """
+        conexion = None
         try:
             conexion = self.db.crearConexion()
             if not conexion:
                 return []
                 
-            conexion.row_factory = sqlite3.Row
-            cursor = conexion.cursor()
-            cursor.execute(query)
-            resultado = cursor.fetchall()
-            self.db.cerrarConexion(conexion)
-            return resultado
+            with conexion.cursor(dictionary=True) as cursor:
+                cursor.execute(query)
+                resultado = cursor.fetchall()
+                return resultado
             
-        except sqlite3.Error as e:
+        except Exception as e:
             print(f"Ha ocurrido un error mientras se trataba de obtener todos los artículos: {str(e)}")
+            return []
+        finally:
             if conexion:
                 self.db.cerrarConexion(conexion)
-            return []
     
-    def buscar_articulo(self, termino_busqueda: str) -> Optional[Row]:
+    def buscar_articulo(self, termino_busqueda: str) -> Optional[Dict]:
         """Busca y retorna un Artículo por su descripción o por su código"""
         query = """
             SELECT 
@@ -78,7 +81,7 @@ class ArticuloModelo:
                 articulo,
                 descripcion
             FROM articulos
-            WHERE descripcion LIKE ? OR codigo LIKE ? OR articulo LIKE ?
+            WHERE descripcion LIKE %s OR codigo LIKE %s OR articulo LIKE %s
             ORDER BY codigo, articulo
             LIMIT 1
         """
@@ -86,23 +89,23 @@ class ArticuloModelo:
         termino_like = f"%{termino_busqueda}%" 
         parametros = (termino_like, termino_like, termino_like)
         
+        conexion = None
         try:
             conexion = self.db.crearConexion()
             if not conexion:
                 return None
                 
-            conexion.row_factory = sqlite3.Row
-            cursor = conexion.cursor()
-            cursor.execute(query, parametros)
-            resultado = cursor.fetchone()
-            self.db.cerrarConexion(conexion)
-            return resultado
+            with conexion.cursor(dictionary=True) as cursor:
+                cursor.execute(query, parametros)
+                resultado = cursor.fetchone()
+                return resultado
             
-        except sqlite3.Error as e:
+        except Exception as e:
             print(f"Ha ocurrido un error mientras se trataba de obtener el articulo con el término {termino_busqueda}: {str(e)}")
+            return None
+        finally:
             if conexion:
                 self.db.cerrarConexion(conexion)
-            return None
     
     def modificar_articulo(self, articulo_id: int, nuevo_codigo: str, nuevo_articulo: str, nueva_descripcion: str) -> bool:
         """
@@ -111,28 +114,29 @@ class ArticuloModelo:
         query = """
             UPDATE articulos
             SET 
-                codigo = ?,
-                articulo = ?,
-                descripcion = ?
-            WHERE id = ?
+                codigo = %s,
+                articulo = %s,
+                descripcion = %s
+            WHERE id = %s
         """
         
+        conexion = None
         try:
             conexion = self.db.crearConexion()
             if not conexion:
                 return False
                 
-            with conexion:
-                cursor = conexion.cursor()
+            with conexion.cursor() as cursor:
                 parametros = (nuevo_codigo, nuevo_articulo, nueva_descripcion, articulo_id)
                 cursor.execute(query, parametros)
+                conexion.commit()
                 return cursor.rowcount > 0
                 
-        except sqlite3.IntegrityError as e:
-            print(f"Error de integridad: El código {nuevo_codigo} ya existe. {str(e)}")
-            return False
-        except sqlite3.Error as e:
-            print(f"Ha ocurrido un error mientras se trataba actualizar el artículo ID {articulo_id}: {str(e)}")
+        except Exception as e:
+            if hasattr(e, 'errno') and e.errno == 1062:  # Error de duplicado en MySQL
+                print(f"Error de integridad: El código {nuevo_codigo} ya existe. {str(e)}")
+            else:
+                print(f"Ha ocurrido un error mientras se trataba actualizar el artículo ID {articulo_id}: {str(e)}")
             return False
         finally:
             if conexion:
@@ -142,16 +146,17 @@ class ArticuloModelo:
         """
         Elimina un artículo de la base de datos dado su ID.
         """
-        query = "DELETE FROM articulos WHERE id = ?"
+        query = "DELETE FROM articulos WHERE id = %s"
         
+        conexion = None
         try:
             conexion = self.db.crearConexion()
             if not conexion:
                 return False
                 
-            with conexion:
-                cursor = conexion.cursor()
+            with conexion.cursor() as cursor:
                 cursor.execute(query, (articulo_id,))
+                conexion.commit()
                 if cursor.rowcount > 0:
                     print(f"Artículo ID {articulo_id} eliminado con éxito.")
                     return True
@@ -159,7 +164,7 @@ class ArticuloModelo:
                     print(f"Advertencia: No se encontró el artículo ID {articulo_id} para eliminar.")
                     return False
                     
-        except sqlite3.Error as e:
+        except Exception as e:
             print(f"Error al intentar eliminar el artículo ID {articulo_id}: {str(e)}")
             return False
         finally:
