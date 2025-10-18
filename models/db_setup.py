@@ -1,12 +1,24 @@
 # database_connector.py
 import sqlite3
+import os
 from sqlite3 import Error
 
 class Database:
     
-    def __init__(self, db_archivo="Proyecto_ultima.db"):
+    def __init__(self, db_archivo=None):
+        # Si no se especifica archivo, usar la carpeta models
+        if db_archivo is None:
+            # Obtener el directorio actual del archivo
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Crear la ruta completa en la carpeta models
+            db_archivo = os.path.join(current_dir, "Proyecto_ultima.db")
+        
         self.db_archivo = db_archivo
         self.conexion = None
+        
+        # Crear la carpeta si no existe
+        os.makedirs(os.path.dirname(self.db_archivo), exist_ok=True)
+        
         # Verificar e inicializar la base de datos automáticamente
         self._inicializar_base_datos()
 
@@ -15,6 +27,8 @@ class Database:
         Verifica si las tablas existen y las crea si es necesario
         """
         try:
+            print(f"[INFO] Usando base de datos: {self.db_archivo}")
+            
             # Primero crear una conexión temporal para verificar
             temp_conn = sqlite3.connect(self.db_archivo)
             cursor = temp_conn.cursor()
@@ -26,15 +40,15 @@ class Database:
             temp_conn.close()
             
             if not tabla_persona_existe:
-                print("🔄 Inicializando base de datos por primera vez...")
+                print("[INIT] Inicializando base de datos por primera vez...")
                 self._crear_tablas()
                 self._insertar_datos_catalogo()
-                print("✅ Base de datos inicializada correctamente")
+                print("[OK] Base de datos inicializada correctamente")
             else:
-                print("✅ Base de datos ya está inicializada")
+                print("[OK] Base de datos ya está inicializada")
                 
         except Error as e:
-            print(f"❌ Error al verificar/inicializar base de datos: {e}")
+            print(f"[ERROR] Error al verificar/inicializar base de datos: {e}")
 
     def _crear_tablas(self):
         """
@@ -224,9 +238,9 @@ CREATE TABLE IF NOT EXISTS cargo(
             conn = self.crearConexion()
             if conn:
                 conn.executescript(SQL_SCRIPT_CREACION)
-                print("✅ Tablas creadas exitosamente")
+                print("[OK] Tablas creadas exitosamente")
         except Error as e:
-            print(f"❌ Error al crear tablas: {e}")
+            print(f"[ERROR] Error al crear tablas: {e}")
         finally:
             if conn:
                 self.cerrarConexion()
@@ -287,10 +301,10 @@ CREATE TABLE IF NOT EXISTS cargo(
             )
             
             conn.commit()
-            print("✅ Datos de catálogo insertados correctamente")
+            print("[OK] Datos de catálogo insertados correctamente")
             
         except Error as e:
-            print(f"❌ Error al insertar datos de catálogo: {e}")
+            print(f"[ERROR] Error al insertar datos de catálogo: {e}")
         finally:
             if conn:
                 self.cerrarConexion()
@@ -304,7 +318,7 @@ CREATE TABLE IF NOT EXISTS cargo(
             return self.conexion
         
         except Error as e:
-            print(f"❌ Error: {e}. Al tratar de conectar a la base de datos")
+            print(f"[ERROR] {e}. Al tratar de conectar a la base de datos")
             return None
     
     # Se define la función que cierra la conexión con la base de datos
