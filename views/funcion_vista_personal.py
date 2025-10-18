@@ -34,7 +34,7 @@ class PersonalVista():
     def crear_interfaz(self):
         # Frame principal
         main_frame = ctk.CTkFrame(self.root, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=30, pady=30)
+        main_frame.pack(fill="both", expand=True, padx=30, pady=10)
 
         # Título
         title_label = ctk.CTkLabel(
@@ -43,11 +43,11 @@ class PersonalVista():
             font=("Arial", 28, "bold"),
             text_color="#3498db"
         )
-        title_label.pack(pady=(0, 30))
+        title_label.pack(pady=(0, 5))
 
         # Frame del formulario
         form_frame = ctk.CTkFrame(main_frame)
-        form_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        form_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Configurar grid del formulario
         form_frame.columnconfigure(1, weight=1)
@@ -94,7 +94,7 @@ class PersonalVista():
 
         # Frame de botones
         button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.pack(fill="x", pady=30)
+        button_frame.pack(fill="x", pady=10)
 
         # Botón Crear
         btn_crear = ctk.CTkButton(
