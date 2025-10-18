@@ -9,12 +9,10 @@ if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 from database_connector import Database
-from db_setup import CreateDatabase
 
 class MatriculaModel:
     def __init__(self):
         self.db = Database()
-        self.db = CreateDatabase()
     
     def _validar_grado(self, grado):
         """Valida que el grado sea válido"""

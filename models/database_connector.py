@@ -1,12 +1,14 @@
 # database_connector.py
 import sqlite3
 from sqlite3 import Error
+from db_setup import CreateDatabase
 
 class Database:
     
     def __init__(self, db_archivo="Proyecto_ultima.db"):
         self.db_archivo = db_archivo
         self.conexion = None
+        self.db = CreateDatabase()
 
     # Se define la función de crear la conexión a la base de datos
     def crearConexion(self):

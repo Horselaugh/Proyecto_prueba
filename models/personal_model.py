@@ -12,14 +12,12 @@ from typing import List, Dict, Optional
 
 # Ahora importa el módulo database_connector
 from database_connector import Database
-from db_setup import CreateDatabase
 
 class PersonalModel:
     """Modelo para gestionar las operaciones de Personal en la base de datos"""
 
     def __init__(self):
         self.db = Database()
-        self.db = CreateDatabase()
         
     def _mapear_personal(self, fila: tuple) -> dict:
         """Función interna para mapear una fila de la BD a un diccionario."""
