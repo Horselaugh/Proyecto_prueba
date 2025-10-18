@@ -134,7 +134,7 @@ class LoginApp:
         self.app.destroy()
         
         try:
-            from menu import MenuApp
+            from views.menu import MenuApp
             main_app = MenuApp()
             main_app.mainloop()
         except ImportError as e:

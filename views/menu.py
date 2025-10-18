@@ -1,7 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
 import sys
-import os
 
 # Configuración de apariencia
 ctk.set_appearance_mode("dark")
@@ -235,15 +234,17 @@ class MenuApp(ctk.CTk):
     def gestion_articulos(self):
         """Abrir gestión de Artículos"""
         try:
-            messagebox.showinfo("📦 Gestión de Artículos", 
-                              "🔧 Módulo en desarrollo\n\nPróximamente disponible...")
+            from funcion_vista_art import main
+            main()
+        except ImportError as e:
+            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo Artículos: {str(e)}")
         except Exception as e:
             messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
     
     def gestion_personal(self):
         """Abrir gestión de Personal"""
         try:
-            from funcion_vista_database import PersonalVista
+            from funcion_vista_personal import PersonalVista
             # PersonalVista crea su propia ventana Tk()
             PersonalVista()
         except ImportError as e:
@@ -287,7 +288,7 @@ Consejo de Protección de Niños, Niñas y Adolescentes
             self.destroy()
             # Volver al login
             try:
-                from funcion_login import LoginApp
+                from views.funcion_login import LoginApp
                 login_app = LoginApp()
                 login_app.run()
             except ImportError:
