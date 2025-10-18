@@ -1,57 +1,48 @@
-# base_de_datos/PersonalDAOImpl.py
-
-from base_de_datos.conexion_database import Database
+from models.database_connector import Database
 from sqlite3 import Error, IntegrityError
 from typing import List, Dict, Optional
 
-# NOTA: Se asume que existe la interfaz PersonalDAO en la carpeta 'dao'
-# y la clase Entidad Personal en la carpeta 'models'.
+class PersonalModel:
+    """Modelo para gestionar las operaciones de Personal en la base de datos"""
 
-# --- Estructura Simulada (Para Contexto, estas irían en otras carpetas) ---
-class PersonalDAO: 
-    """Interfaz (Contrato) que define las operaciones del DAO."""
-    def agregar_personal(self, datos: dict) -> int: raise NotImplementedError
-    def obtener_por_id(self, persona_id: int) -> Optional[dict]: raise NotImplementedError
-    def listar_todo(self) -> List[dict]: raise NotImplementedError
-    def actualizar_personal(self, datos: dict) -> bool: raise NotImplementedError
-    def eliminar_personal(self, persona_id: int) -> bool: raise NotImplementedError
-    def obtener_por_usuario(self, nombre_usuario: str) -> Optional[dict]: raise NotImplementedError
-# -------------------------------------------------------------------------
+    def __init__(self):
+        self.db = Database()
 
+    def _mapear_personal(self, fila: tuple) -> dict:
+        """Función interna para mapear una fila de la BD a un diccionario."""
+        if not fila:
+            return None
+        return {
+            "persona_id": fila[0],
+            "documento_identidad": fila[1],
+            "primer_nombre": fila[2],
+            "primer_apellido": fila[3],
+            "telefono": fila[4],
+            "nombre_usuario": fila[5],
+            "cargo": fila[6],
+            "resolucion": fila[7],
+            "activo": bool(fila[8])
+        }
 
-class PersonalDAOImpl(PersonalDAO):
-    """
-    Implementación concreta de las operaciones CRUD para la entidad Personal.
-    Depende de la clase Database para la conexión (DIP).
-    """
-    
-    def __init__(self, db_manager: Database):
-        self._db_manager = db_manager
-
-    # --------------------------------
-    # C R E A T E (Crear)
-    # --------------------------------
     def agregar_personal(self, datos: dict) -> int:
         """Inserta un nuevo registro en Persona y Personal dentro de una transacción."""
         
-        # 1. Insertar en la tabla persona
         sql_persona = """
         INSERT INTO persona (documento_identidad, primer_nombre, segundo_nombre, 
                              primer_apellido, segundo_apellido, telefono, direccion, genero, activo) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)
         """
-        # 2. Insertar en la tabla personal
+        
         sql_personal = """
         INSERT INTO personal (persona_id, cargo, resolucion, activo, nombre_usuario, password) 
         VALUES (?, ?, ?, TRUE, ?, ?) 
         """
         
-        conexion = self._db_manager.obtener_conexion()
+        conexion = self.db.obtener_conexion()
         if conexion is None:
             raise Error("No se pudo establecer conexión con la base de datos.")
 
         try:
-            # Usamos 'with conexion' para manejar la transacción automáticamente (commit/rollback)
             with conexion:
                 cursor = conexion.cursor()
                 
@@ -75,31 +66,9 @@ class PersonalDAOImpl(PersonalDAO):
                 return persona_id
 
         except IntegrityError as e:
-            # Errores de duplicidad (cédula, teléfono, nombre_usuario)
             raise IntegrityError(f"Error de integridad. El registro ya existe. {e}")
         except Error as e:
-            # Otros errores de BD
             raise Error(f"Error de BD al registrar personal: {e}")
-
-    # --------------------------------
-    # R E A D (Leer/Consultar)
-    # --------------------------------
-    def _mapear_personal(self, fila: tuple) -> dict:
-        """Función interna para mapear una fila de la BD a un diccionario."""
-        if not fila:
-            return None
-        return {
-            "persona_id": fila[0],
-            "documento_identidad": fila[1],
-            "primer_nombre": fila[2],
-            "primer_apellido": fila[3],
-            "telefono": fila[4],
-            "nombre_usuario": fila[5],
-            "cargo": fila[6],
-            "resolucion": fila[7],
-            "activo": bool(fila[8])
-        }
-
 
     def obtener_por_id(self, persona_id: int) -> Optional[dict]:
         """Busca un registro de Personal por su ID."""
@@ -111,7 +80,7 @@ class PersonalDAOImpl(PersonalDAO):
         INNER JOIN personal pe ON p.id = pe.persona_id
         WHERE p.id = ?;
         """
-        conexion = self._db_manager.obtener_conexion()
+        conexion = self.db.obtener_conexion()
         if conexion is None:
             return None
 
@@ -124,7 +93,6 @@ class PersonalDAOImpl(PersonalDAO):
         except Error as e:
             raise Error(f"Error al obtener personal por ID: {e}")
 
-
     def listar_todo(self) -> List[dict]:
         """Lista todos los registros de Personal activos."""
         sql = """
@@ -135,7 +103,7 @@ class PersonalDAOImpl(PersonalDAO):
         INNER JOIN personal pe ON p.id = pe.persona_id
         WHERE p.activo = TRUE;
         """
-        conexion = self._db_manager.obtener_conexion()
+        conexion = self.db.obtener_conexion()
         if conexion is None:
             return []
 
@@ -148,31 +116,26 @@ class PersonalDAOImpl(PersonalDAO):
         except Error as e:
             raise Error(f"Error al listar personal: {e}")
 
-    # --------------------------------
-    # U P D A T E (Actualizar)
-    # --------------------------------
     def actualizar_personal(self, datos: dict) -> bool:
         """Actualiza los datos del Personal en ambas tablas."""
         
-        # El ID es obligatorio
         if 'persona_id' not in datos:
             return False
             
-        # Actualización de Persona
         sql_persona = """
         UPDATE persona SET 
             documento_identidad = ?, primer_nombre = ?, primer_apellido = ?, 
             telefono = ?, direccion = ?, genero = ?
         WHERE id = ?;
         """
-        # Actualización de Personal
+        
         sql_personal = """
         UPDATE personal SET 
             cargo = ?, resolucion = ?, nombre_usuario = ?, password = ?
         WHERE persona_id = ?;
         """
         
-        conexion = self._db_manager.obtener_conexion()
+        conexion = self.db.obtener_conexion()
         if conexion is None:
             raise Error("No se pudo establecer conexión para actualizar.")
 
@@ -193,21 +156,18 @@ class PersonalDAOImpl(PersonalDAO):
                     datos.get("password"), datos["persona_id"]
                 ))
                 
-                return cursor.rowcount > 0 # Retorna True si se afectó al menos una fila
+                return cursor.rowcount > 0
         except IntegrityError as e:
             raise IntegrityError(f"Error de integridad al actualizar (documento o usuario duplicado). {e}")
         except Error as e:
             raise Error(f"Error de BD al actualizar personal: {e}")
 
-    # --------------------------------
-    # D E L E T E (Borrar Lógico)
-    # --------------------------------
     def eliminar_personal(self, persona_id: int) -> bool:
         """Realiza un borrado lógico estableciendo el campo 'activo' a FALSE en la tabla persona."""
         
         sql = "UPDATE persona SET activo = FALSE WHERE id = ?;"
         
-        conexion = self._db_manager.obtener_conexion()
+        conexion = self.db.obtener_conexion()
         if conexion is None:
             raise Error("No se pudo establecer conexión para la eliminación.")
 
@@ -219,9 +179,6 @@ class PersonalDAOImpl(PersonalDAO):
         except Error as e:
             raise Error(f"Error de BD al eliminar personal: {e}")
 
-    # --------------------------------
-    # OPERACIÓN ADICIONAL
-    # --------------------------------
     def obtener_por_usuario(self, nombre_usuario: str) -> Optional[dict]:
         """Busca un registro de Personal por el nombre de usuario (útil para login)."""
         sql = """
@@ -232,7 +189,7 @@ class PersonalDAOImpl(PersonalDAO):
         INNER JOIN personal pe ON p.id = pe.persona_id
         WHERE pe.nombre_usuario = ?;
         """
-        conexion = self._db_manager.obtener_conexion()
+        conexion = self.db.obtener_conexion()
         if conexion is None:
             return None
 

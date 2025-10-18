@@ -1,6 +1,7 @@
 import customtkinter as ctk
-from modulo_gestion_database import PersonalModel
 from tkinter import messagebox
+from models.personal_model import PersonalModel
+from controllers.personal_controller import PersonalController
 
 class PersonalVista():
     def __init__(self):
