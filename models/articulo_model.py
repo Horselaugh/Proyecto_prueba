@@ -1,82 +1,167 @@
-import sqlite3
-from sqlite3 import Error
+import sys
+import os
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-class Database:
+import sqlite3
+from sqlite3 import Row
+from typing import List, Optional
+from models.database_connector import Database  # Cambiar a nuestro Database
+
+class ArticuloModelo:
     """
-    Crea la base de datos del sistema
-    1. Se obtiene la conexión de la base de datos
-    2. Se crean las entidades de la base de datos si estas no existen
+    Modelo que maneja la estructura de artículos LOPNNA
     """
-    def __init__(self, db_nombre="Proyecto_ultima.db"):
-        self.db_nombre = db_nombre
-        self.crear_tablas()
+    def __init__(self):
+        self.db = Database()
     
-    def obtener_conexion(self) -> sqlite3.Connection:
-        """Retorna una conexión activa a la base de datos"""
+    def insertar_articulo(self, codigo: str, articulo: str, descripcion: str) -> Optional[int]:
+        """Inserta un artículo y retorna su ID"""
+        query = "INSERT INTO articulos (codigo, articulo, descripcion) VALUES (?, ?, ?)"
         try:
-            return sqlite3.connect(self.db_nombre)
-        except Error as e:
-            print(f"No se pudo conectar con la base de datos: {str(e)}")
-            return None
-    # Fin de obtener_conexion
-            
-    def crear_tablas(self):
-        """Crea las tablas de la base de datos si no existen"""
-        conexion = self.obtener_conexion()
-        if conexion is None:
-            return False
-        
-        try:
+            conexion = self.db.crearConexion()
+            if not conexion:
+                return None
+                
             with conexion:
                 cursor = conexion.cursor()
+                cursor.execute(query, (codigo, articulo, descripcion))
+                return cursor.lastrowid
                 
-                # Para asegurar la integridad referencial
-                cursor.execute("PRAGMA foreign_keys = ON;")
+        except sqlite3.IntegrityError as e:
+            print(f"Advertencia: Artículo {codigo} ya existe. {str(e)}")
+            return None
+        except sqlite3.Error as e:
+            print(f"Error al insertar artículo {codigo}: {str(e)}")
+            return None
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
+
+    def obtener_todos_los_articulos(self) -> List[Row]:
+        """
+        Retorna todos los artículos para llenar la lista en la vista
+        """
+        query = """
+            SELECT 
+                id,
+                codigo,
+                articulo,
+                descripcion
+            FROM articulos
+            ORDER BY codigo, articulo
+        """
+        try:
+            conexion = self.db.crearConexion()
+            if not conexion:
+                return []
                 
-                # Sentencia SQL para crear TODAS las tablas:
-                sql_script="""
-                ---------------------------------
-                -- TABLAS LOPNNA (LEGISLACIÓN) --
-                ---------------------------------
-                
-                CREATE TABLE IF NOT EXISTS titulo(
-                    id INTEGER PRIMARY KEY,
-                    nombre TEXT NOT NULL UNIQUE
-                );
-                
-                CREATE TABLE IF NOT EXISTS capitulo(
-                    id INTEGER PRIMARY KEY,
-                    titulo_id INTEGER NOT NULL,
-                    nombre TEXT NOT NULL,
-                    FOREIGN KEY (titulo_id) REFERENCES titulo(id) ON DELETE CASCADE,
-                    UNIQUE (titulo_id, nombre)
-                );
-                
-                CREATE TABLE IF NOT EXISTS articulo(
-                    id INTEGER PRIMARY KEY,
-                    capitulo_id INTEGER NOT NULL,
-                    numero_articulo TEXT NOT NULL,
-                    descripcion TEXT NOT NULL,
-                    texto TEXT NOT NULL,
-                    FOREIGN KEY (capitulo_id) REFERENCES capitulo(id) ON DELETE CASCADE,
-                    UNIQUE (capitulo_id, numero_articulo)
-                );
-                 
-                CREATE TABLE IF NOT EXISTS literal(
-                    id INTEGER PRIMARY KEY,
-                    articulo_id INTEGER NOT NULL,
-                    literal_codigo TEXT NOT NULL,
-                    texto TEXT NOT NULL,
-                    FOREIGN KEY (articulo_id) REFERENCES articulo(id) ON DELETE CASCADE,
-                    UNIQUE (articulo_id , literal_codigo)
-                );
+            conexion.row_factory = sqlite3.Row
+            cursor = conexion.cursor()
+            cursor.execute(query)
+            resultado = cursor.fetchall()
+            self.db.cerrarConexion(conexion)
+            return resultado
             
-                """
-                # Se ejecutan todas las sentencias SQL
-                cursor.executescript(sql_script)
-                conexion.commit()
-                print("Todas las tablas del módulo expediente han sido creadas")
-        except Error as e:
-            print(f"Ha ocurrido un error mientras se estaban creando las tablas: {str(e)}")
+        except sqlite3.Error as e:
+            print(f"Ha ocurrido un error mientras se trataba de obtener todos los artículos: {str(e)}")
+            if conexion:
+                self.db.cerrarConexion(conexion)
+            return []
+    
+    def buscar_articulo(self, termino_busqueda: str) -> Optional[Row]:
+        """Busca y retorna un Artículo por su descripción o por su código"""
+        query = """
+            SELECT 
+                id,
+                codigo,
+                articulo,
+                descripcion
+            FROM articulos
+            WHERE descripcion LIKE ? OR codigo LIKE ? OR articulo LIKE ?
+            ORDER BY codigo, articulo
+            LIMIT 1
+        """
+        
+        termino_like = f"%{termino_busqueda}%" 
+        parametros = (termino_like, termino_like, termino_like)
+        
+        try:
+            conexion = self.db.crearConexion()
+            if not conexion:
+                return None
+                
+            conexion.row_factory = sqlite3.Row
+            cursor = conexion.cursor()
+            cursor.execute(query, parametros)
+            resultado = cursor.fetchone()
+            self.db.cerrarConexion(conexion)
+            return resultado
+            
+        except sqlite3.Error as e:
+            print(f"Ha ocurrido un error mientras se trataba de obtener el articulo con el término {termino_busqueda}: {str(e)}")
+            if conexion:
+                self.db.cerrarConexion(conexion)
+            return None
+    
+    def modificar_articulo(self, articulo_id: int, nuevo_codigo: str, nuevo_articulo: str, nueva_descripcion: str) -> bool:
+        """
+        Modifica los datos de un artículo por su ID.
+        """
+        query = """
+            UPDATE articulos
+            SET 
+                codigo = ?,
+                articulo = ?,
+                descripcion = ?
+            WHERE id = ?
+        """
+        
+        try:
+            conexion = self.db.crearConexion()
+            if not conexion:
+                return False
+                
+            with conexion:
+                cursor = conexion.cursor()
+                parametros = (nuevo_codigo, nuevo_articulo, nueva_descripcion, articulo_id)
+                cursor.execute(query, parametros)
+                return cursor.rowcount > 0
+                
+        except sqlite3.IntegrityError as e:
+            print(f"Error de integridad: El código {nuevo_codigo} ya existe. {str(e)}")
             return False
-    # Fin de crear_tablas
+        except sqlite3.Error as e:
+            print(f"Ha ocurrido un error mientras se trataba actualizar el artículo ID {articulo_id}: {str(e)}")
+            return False
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
+
+    def eliminar_articulo(self, articulo_id: int) -> bool:
+        """
+        Elimina un artículo de la base de datos dado su ID.
+        """
+        query = "DELETE FROM articulos WHERE id = ?"
+        
+        try:
+            conexion = self.db.crearConexion()
+            if not conexion:
+                return False
+                
+            with conexion:
+                cursor = conexion.cursor()
+                cursor.execute(query, (articulo_id,))
+                if cursor.rowcount > 0:
+                    print(f"Artículo ID {articulo_id} eliminado con éxito.")
+                    return True
+                else:
+                    print(f"Advertencia: No se encontró el artículo ID {articulo_id} para eliminar.")
+                    return False
+                    
+        except sqlite3.Error as e:
+            print(f"Error al intentar eliminar el artículo ID {articulo_id}: {str(e)}")
+            return False
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)

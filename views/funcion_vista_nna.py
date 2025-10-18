@@ -1,6 +1,14 @@
-# funcion_vista_nna.py
+import sys
+import os
 from customtkinter import *
-from modulo_Gestion_NNA import crear, leer, actualizar, eliminar
+
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from controllers.nna_controller import NNAController  # Cambiar esta importación
+
+# Crear instancia del controlador
+nna_controller = NNAController()
 
 def mostrar_resultado(ventana, resultado):
     ventana_resultado = CTkToplevel(ventana)
@@ -131,7 +139,8 @@ def vista_crear():
             mostrar_resultado(ventana, {"error": "❌ Formato de fecha debe ser YYYY-MM-DD", "status": "error"})
             return
 
-        resultado = crear(
+        # ✅ CORREGIDO: Usar la instancia del controlador
+        resultado = nna_controller.crear(
             primer_nombre=campos["primer_nombre"].get(),
             primer_apellido=campos["primer_apellido"].get(),
             fecha_nacimiento=campos["fecha_nacimiento"].get(),
@@ -204,13 +213,15 @@ def vista_leer():
             if not nombre or not apellido:
                 mostrar_resultado(ventana, {"error": "❌ Debe ingresar nombre y apellido", "status": "error"})
                 return
-            resultado = leer(primer_nombre=nombre, primer_apellido=apellido)
+            # ✅ CORREGIDO: Usar la instancia del controlador
+            resultado = nna_controller.leer(primer_nombre=nombre, primer_apellido=apellido)
         else:
             id_nna = current_entries["id"].get() if "id" in current_entries else ""
             if not id_nna:
                 mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
                 return
-            resultado = leer(id=id_nna)
+            # ✅ CORREGIDO: Usar la instancia del controlador
+            resultado = nna_controller.leer(id=id_nna)
         
         mostrar_resultado(ventana, resultado)
 
@@ -303,7 +314,8 @@ def vista_actualizar():
             mostrar_resultado(ventana, {"error": "❌ No hay datos para actualizar", "status": "error"})
             return
             
-        resultado = actualizar(id_nna, **datos_actualizar)
+        # ✅ CORREGIDO: Usar la instancia del controlador
+        resultado = nna_controller.actualizar(id_nna, **datos_actualizar)
         mostrar_resultado(ventana, resultado)
 
     button_frame = CTkFrame(ventana, fg_color="transparent")
@@ -345,7 +357,8 @@ def vista_eliminar():
                 font=("Arial", 16), wraplength=400).pack(pady=40)
         
         def confirmar():
-            resultado = eliminar(id_nna)
+            # ✅ CORREGIDO: Usar la instancia del controlador
+            resultado = nna_controller.eliminar(id_nna)
             mostrar_resultado(ventana, resultado)
             confirmacion.destroy()
         

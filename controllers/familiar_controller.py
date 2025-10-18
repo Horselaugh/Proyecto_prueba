@@ -1,4 +1,9 @@
-from funcion_base_de_datos import coneccion_db as conec_db, cerrar_coneccion_db as cerrar_db
+import sys
+import os
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models.nna_model import NNAModel
 
 def crear(primer_nombre, primer_apellido, parentesco_id, direccion, telefono, segundo_nombre=None, segundo_apellido=None, tutor=False):
     # Validaciones

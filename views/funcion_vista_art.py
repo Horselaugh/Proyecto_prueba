@@ -1,5 +1,10 @@
 import customtkinter as ctk
-from modulo_gestion_art import ArticuloModelo
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models.articulo_model import ArticuloModelo
 
 class ArticuloVista:
     def __init__(self):
@@ -13,6 +18,14 @@ class ArticuloVista:
         self.codigo_var = ctk.StringVar()
         self.articulo_var = ctk.StringVar()
         self.descripcion_var = ctk.StringVar()
+        
+        # Inicializar eventos con funciones vacías para evitar el error
+        self.eventos = {
+            "agregar_articulo": lambda: None,
+            "buscar_articulo": lambda: None,
+            "modificar_articulo": lambda: None,
+            "eliminar_articulo": lambda: None
+        }
         
         self.crear_interfaz()
         
@@ -96,9 +109,9 @@ class ArticuloVista:
         buttons_frame.pack(fill="x", pady=30)
 
         botones = [
-            ("➕ Agregar", self.eventos["agregar_articulo"], "#27ae60"),
-            ("✏️ Modificar", self.eventos["modificar_articulo"], "#f39c12"),
-            ("🗑️ Eliminar", self.eventos["eliminar_articulo"], "#e74c3c"),
+            ("➕ Agregar", lambda: self.eventos["agregar_articulo"](), "#27ae60"),
+            ("✏️ Modificar", lambda: self.eventos["modificar_articulo"](), "#f39c12"),
+            ("🗑️ Eliminar", lambda: self.eventos["eliminar_articulo"](), "#e74c3c"),
             ("🧹 Limpiar", self.limpiar_entradas, "#7f8c8d")
         ]
 
@@ -115,7 +128,7 @@ class ArticuloVista:
             btn.pack(side="left", expand=True, padx=10)
 
     def establecer_eventos(self, **kwargs): 
-        self.eventos = kwargs
+        self.eventos.update(kwargs)
         
     def mostrar_mensaje(self, mensaje, color="#FFFFFF"): 
         # Crear ventana de mensaje
