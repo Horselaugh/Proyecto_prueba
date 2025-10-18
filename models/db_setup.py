@@ -3,7 +3,7 @@ import sqlite3
 import os
 from sqlite3 import Error
 
-class Database:
+class CreateDatabase:
     
     def __init__(self, db_archivo=None):
         # Si no se especifica archivo, usar la carpeta models
@@ -328,4 +328,4 @@ CREATE TABLE IF NOT EXISTS cargo(
             self.conexion = None
 
 # Crear una instancia global para usar en otros módulos
-database = Database()
+database = CreateDatabase()

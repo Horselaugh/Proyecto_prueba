@@ -7,6 +7,7 @@ import sqlite3
 from sqlite3 import Row
 from typing import List, Optional
 from models.database_connector import Database  # Cambiar a nuestro Database
+from db_setup import CreateDatabase
 
 class ArticuloModelo:
     """
@@ -14,6 +15,7 @@ class ArticuloModelo:
     """
     def __init__(self):
         self.db = Database()
+        self.db = CreateDatabase()
     
     def insertar_articulo(self, codigo: str, articulo: str, descripcion: str) -> Optional[int]:
         """Inserta un artículo y retorna su ID"""
