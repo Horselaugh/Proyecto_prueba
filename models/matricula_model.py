@@ -1,6 +1,7 @@
-# matricula_model.py
+# models/matricula_model.py
 import sys
 import os
+import sqlite3
 from datetime import datetime
 
 # Agregar el directorio actual al path para importar database_connector
@@ -16,7 +17,6 @@ class MatriculaModel:
     
     def _validar_grado(self, grado):
         """Valida que el grado sea válido"""
-        # Puedes ajustar esta validación según los grados que manejes
         grados_validos = ['1ro', '2do', '3ro', '4to', '5to', '6to', '1ro Sec', '2do Sec', '3ro Sec', '4to Sec', '5to Sec']
         return grado in grados_validos
     
@@ -36,7 +36,7 @@ class MatriculaModel:
                 return False
             
             # Verificar que la unidad educativa existe
-            cursor.execute('SELECT id FROM matricula_educativa WHERE id = ?', (unidad_id,))
+            cursor.execute('SELECT id FROM unidad_educativa WHERE id = ?', (unidad_id,))
             if not cursor.fetchone():
                 return False
             
@@ -45,7 +45,7 @@ class MatriculaModel:
             return False
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def crear_matricula(self, nna_id, unidad_id, grado, fecha_matricula=None, activa=True):
         """
@@ -57,6 +57,9 @@ class MatriculaModel:
         
         if not self._validar_grado(grado):
             return {"error": "Grado no válido", "status": "error"}
+        
+        if not self._validar_ids(nna_id, unidad_id):
+            return {"error": "NNA ID o Unidad ID no existen", "status": "error"}
         
         # Si no se proporciona fecha, usar la fecha actual
         if not fecha_matricula:
@@ -84,7 +87,7 @@ class MatriculaModel:
             cursor.execute('''
                 INSERT INTO matricula_educativa (nna_id, unidad_id, grado, fecha_matricula, activa) 
                 VALUES (?, ?, ?, ?, ?)''',
-                (nna_id, unidad_id, grado, fecha_matricula, activa))
+                (nna_id, unidad_id, grado, fecha_matricula, 1 if activa else 0))
             
             conn.commit()
             return {
@@ -93,13 +96,17 @@ class MatriculaModel:
                 "nna_id": nna_id,
                 "unidad_id": unidad_id
             }
+        except sqlite3.IntegrityError as e:
+            if conn:
+                conn.rollback()
+            return {"error": f"Error de integridad: {str(e)}", "status": "error"}
         except Exception as e:
             if conn:
                 conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def buscar_matricula(self, nna_id=None, unidad_id=None):
         """
@@ -139,12 +146,17 @@ class MatriculaModel:
             rows = cursor.fetchall()
             if not rows:
                 return {"error": "No se encontraron registros", "status": "error"}
-            return {"data": rows, "status": "success"}
+            
+            # Convertir a lista de diccionarios
+            columns = [description[0] for description in cursor.description]
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            return {"data": result, "status": "success"}
         except Exception as e:
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def actualizar_matricula(self, nna_id, unidad_id, grado=None, fecha_matricula=None, activa=None):
         """
@@ -161,7 +173,7 @@ class MatriculaModel:
         if fecha_matricula:
             updates["fecha_matricula"] = fecha_matricula
         if activa is not None:
-            updates["activa"] = activa
+            updates["activa"] = 1 if activa else 0
         
         # Validar que hay datos para actualizar
         if not updates:
@@ -185,14 +197,19 @@ class MatriculaModel:
                 WHERE nna_id = ? AND unidad_id = ?''', params)
             
             conn.commit()
-            return {"status": "success", "message": "Matrícula actualizada correctamente"}
+            
+            if cursor.rowcount > 0:
+                return {"status": "success", "message": "Matrícula actualizada correctamente"}
+            else:
+                return {"error": "No se encontró la matrícula especificada", "status": "error"}
+                
         except Exception as e:
             if conn:
                 conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def eliminar_matricula(self, nna_id, unidad_id):
         """
@@ -214,14 +231,19 @@ class MatriculaModel:
             # Eliminar
             cursor.execute('DELETE FROM matricula_educativa WHERE nna_id = ? AND unidad_id = ?', (nna_id, unidad_id))
             conn.commit()
-            return {"status": "success", "message": "Matrícula educativa eliminada correctamente"}
+            
+            if cursor.rowcount > 0:
+                return {"status": "success", "message": "Matrícula educativa eliminada correctamente"}
+            else:
+                return {"error": "No se pudo eliminar la matrícula", "status": "error"}
+                
         except Exception as e:
             if conn:
                 conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def listar_matriculas_activas(self):
         """
@@ -244,12 +266,17 @@ class MatriculaModel:
             ''')
             
             rows = cursor.fetchall()
-            return {"data": rows, "status": "success"}
+            
+            # Convertir a lista de diccionarios
+            columns = [description[0] for description in cursor.description]
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            return {"data": result, "status": "success"}
         except Exception as e:
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def obtener_matricula_por_nna(self, nna_id):
         """

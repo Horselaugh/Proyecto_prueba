@@ -1,6 +1,7 @@
-# familiar_model.py
+# models/familiar_model.py
 import sys
 import os
+import sqlite3
 
 # Agregar el directorio actual al path para importar database_connector
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -8,7 +9,6 @@ if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 from database_connector import Database
-
 
 class FamiliarModel:
     def __init__(self):
@@ -18,18 +18,18 @@ class FamiliarModel:
         """Valida que el teléfono tenga 11 dígitos"""
         return telefono and len(telefono) == 11 and telefono.isdigit()
     
-    def _validar_campos_obligatorios(self, primer_nombre, primer_apellido, parentesco_id):
+    def _validar_campos_obligatorios(self, primer_nombre, primer_apellido):
         """Valida los campos obligatorios"""
-        return primer_nombre and primer_apellido and parentesco_id
+        return primer_nombre and primer_apellido
     
-    def crear_familiar(self, primer_nombre, primer_apellido, parentesco_id, direccion, telefono, 
+    def crear_familiar(self, primer_nombre, primer_apellido, direccion, telefono, 
                       segundo_nombre=None, segundo_apellido=None, tutor=False):
         """
         Crea un nuevo familiar en la base de datos
         """
         # Validaciones
-        if not self._validar_campos_obligatorios(primer_nombre, primer_apellido, parentesco_id):
-            return {"error": "Nombre, apellido y parentesco son obligatorios", "status": "error"}
+        if not self._validar_campos_obligatorios(primer_nombre, primer_apellido):
+            return {"error": "Nombre y apellido son obligatorios", "status": "error"}
         
         if not self._validar_telefono(telefono):
             return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
@@ -47,8 +47,8 @@ class FamiliarModel:
             cursor.execute('''
                 INSERT INTO persona (
                     documento_identidad, primer_nombre, segundo_nombre, 
-                    primer_apellido, segundo_apellido, genero, direccion, telefono
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    primer_apellido, segundo_apellido, genero, direccion, telefono, activo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)
                 ''',
                 (None, primer_nombre, segundo_nombre, primer_apellido, 
                  segundo_apellido, 'F', direccion, telefono)
@@ -60,7 +60,7 @@ class FamiliarModel:
                 INSERT INTO familiar (persona_id, tutor) 
                 VALUES (?, ?)
                 ''',
-                (persona_id, tutor)
+                (persona_id, 1 if tutor else 0)
             )
             
             conn.commit()
@@ -69,13 +69,17 @@ class FamiliarModel:
                 "message": "Familiar creado correctamente", 
                 "id": persona_id
             }
+        except sqlite3.IntegrityError as e:
+            if conn:
+                conn.rollback()
+            return {"error": f"Error de integridad: {str(e)}", "status": "error"}
         except Exception as e:
             if conn:
                 conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def buscar_familiar(self, id=None, primer_nombre=None, primer_apellido=None):
         """
@@ -108,12 +112,17 @@ class FamiliarModel:
             rows = cursor.fetchall()
             if not rows:
                 return {"error": "No se encontraron registros", "status": "error"}
-            return {"data": rows, "status": "success"}
+            
+            # Convertir a lista de diccionarios
+            columns = [description[0] for description in cursor.description]
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            return {"data": result, "status": "success"}
         except Exception as e:
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def actualizar_familiar(self, id, primer_nombre=None, segundo_nombre=None, primer_apellido=None, 
                            segundo_apellido=None, direccion=None, telefono=None, tutor=None):
@@ -160,17 +169,22 @@ class FamiliarModel:
             
             # Actualizar familiar si se especifica tutor
             if tutor is not None:
-                cursor.execute('UPDATE familiar SET tutor = ? WHERE persona_id = ?', (tutor, id))
+                cursor.execute('UPDATE familiar SET tutor = ? WHERE persona_id = ?', (1 if tutor else 0, id))
             
             conn.commit()
-            return {"status": "success", "message": "Familiar actualizado correctamente"}
+            
+            if cursor.rowcount > 0:
+                return {"status": "success", "message": "Familiar actualizado correctamente"}
+            else:
+                return {"error": "No se encontró el familiar especificado", "status": "error"}
+                
         except Exception as e:
             if conn:
                 conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
     
     def eliminar_familiar(self, id):
         """
@@ -192,11 +206,47 @@ class FamiliarModel:
             # Eliminar (se eliminará en cascada de la tabla persona)
             cursor.execute('DELETE FROM persona WHERE id = ?', (id,))
             conn.commit()
-            return {"status": "success", "message": "Familiar eliminado correctamente"}
+            
+            if cursor.rowcount > 0:
+                return {"status": "success", "message": "Familiar eliminado correctamente"}
+            else:
+                return {"error": "No se pudo eliminar el familiar", "status": "error"}
+                
         except Exception as e:
             if conn:
                 conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                self.db.cerrarConexion()
+                self.db.cerrarConexion(conn)
+    
+    def listar_todos_familiares(self):
+        """
+        Obtiene todos los familiares
+        """
+        conn = None
+        try:
+            conn = self.db.crearConexion()
+            if not conn:
+                return {"error": "No se pudo conectar a la base de datos", "status": "error"}
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT p.*, f.tutor 
+                FROM persona p 
+                JOIN familiar f ON p.id = f.persona_id 
+                ORDER BY p.primer_apellido, p.primer_nombre
+            ''')
+            
+            rows = cursor.fetchall()
+            
+            # Convertir a lista de diccionarios
+            columns = [description[0] for description in cursor.description]
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            return {"data": result, "status": "success"}
+        except Exception as e:
+            return {"error": str(e), "status": "error"}
+        finally:
+            if conn:
+                self.db.cerrarConexion(conn)

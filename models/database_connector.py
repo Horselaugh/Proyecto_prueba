@@ -1,32 +1,30 @@
-# database_connector.py
+# models/database_connector.py
 import sqlite3
 from sqlite3 import Error
-from db_setup import CreateDatabase
+import os
 
 class Database:
+    """
+    Clase para manejar la conexión a la base de datos SQLite
+    """
     
-    def __init__(self, db_archivo="Proyecto_ultima.db"):
-        self.db_archivo = db_archivo
-        self.conexion = None
-        self.db = CreateDatabase()
-
-    # Se define la función de crear la conexión a la base de datos
+    def __init__(self):
+        self.database_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lopnna_db.sqlite")
+        self.connection = None
+    
     def crearConexion(self):
+        """Establece conexión con la base de datos SQLite"""
         try:
-            self.conexion = sqlite3.connect(self.db_archivo)
-            print(f"Conexión exitosa a la base de datos: {self.db_archivo}")
-            return self.conexion
-        
+            self.connection = sqlite3.connect(self.database_path)
+            print("✅ Conexión a la base de datos SQLite establecida")
+            return self.connection
         except Error as e:
-            print(f"Error: {e}. Al tratar de conectar a la base de datos")
+            print(f"❌ Error conectando a la base de datos: {e}")
             return None
     
-    # Se define la función que cierra la conexión con la base de datos
-    def cerrarConexion(self):
-        if self.conexion:
-            self.conexion.close()
-            print(f"La conexión con la base de datos ha finalizado")
-            self.conexion = None
-
-# Crear una instancia global para usar en otros módulos
-database = Database()
+    def cerrarConexion(self, conexion=None):
+        """Cierra la conexión con la base de datos"""
+        connection_to_close = conexion or self.connection
+        if connection_to_close:
+            connection_to_close.close()
+            print("✅ Conexión a la base de datos cerrada")

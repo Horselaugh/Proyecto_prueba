@@ -1,5 +1,7 @@
+# models/nna_model.py
 import sys
 import os
+import sqlite3
 from sqlite3 import Error, IntegrityError
 from typing import List, Dict, Optional
 
@@ -9,7 +11,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from database_connector import Database
 except ImportError:
-    # Si falla, intentar importación absoluta
     from models.database_connector import Database
 
 class NNAModel:
@@ -18,22 +19,22 @@ class NNAModel:
     def __init__(self):
         self.db = Database()
 
-    def _mapear_nna(self, fila: tuple) -> dict:
+    def _mapear_nna(self, fila: dict) -> dict:
         """Función interna para mapear una fila de la BD a un diccionario."""
         if not fila:
             return None
         return {
-            "persona_id": fila[0],
-            "documento_identidad": fila[1],
-            "primer_nombre": fila[2],
-            "segundo_nombre": fila[3],
-            "primer_apellido": fila[4],
-            "segundo_apellido": fila[5],
-            "genero": fila[6],
-            "direccion": fila[7],
-            "telefono": fila[8],
-            "fecha_nacimiento": fila[9],
-            "activo": bool(fila[10]) if len(fila) > 10 else True
+            "persona_id": fila["id"],
+            "documento_identidad": fila["documento_identidad"],
+            "primer_nombre": fila["primer_nombre"],
+            "segundo_nombre": fila["segundo_nombre"],
+            "primer_apellido": fila["primer_apellido"],
+            "segundo_apellido": fila["segundo_apellido"],
+            "genero": fila["genero"],
+            "direccion": fila["direccion"],
+            "telefono": fila["telefono"],
+            "fecha_nacimiento": fila["fecha_nacimiento"],
+            "activo": bool(fila["activo"]) if "activo" in fila else True
         }
 
     def crear_nna(self, datos: dict) -> dict:
@@ -66,35 +67,38 @@ class NNAModel:
             return {"error": "No se pudo establecer conexión con la base de datos", "status": "error"}
 
         try:
-            with conexion:
-                cursor = conexion.cursor()
-                
-                # Insertar en persona
-                cursor.execute(sql_persona, (
-                    datos.get("documento_identidad"),
-                    datos["primer_nombre"],
-                    datos.get("segundo_nombre"),
-                    datos["primer_apellido"],
-                    datos.get("segundo_apellido"),
-                    datos["genero"].upper(),
-                    datos["direccion"],
-                    datos["telefono"]
-                ))
-                persona_id = cursor.lastrowid
-                
-                # Insertar en nna
-                cursor.execute(sql_nna, (persona_id, datos["fecha_nacimiento"]))
-                
-                return {
-                    "status": "success", 
-                    "message": "NNA creado correctamente", 
-                    "id": persona_id
-                }
+            cursor = conexion.cursor()
+            
+            # Insertar en persona
+            cursor.execute(sql_persona, (
+                datos.get("documento_identidad"),
+                datos["primer_nombre"],
+                datos.get("segundo_nombre"),
+                datos["primer_apellido"],
+                datos.get("segundo_apellido"),
+                datos["genero"].upper(),
+                datos["direccion"],
+                datos["telefono"]
+            ))
+            persona_id = cursor.lastrowid
+            
+            # Insertar en nna
+            cursor.execute(sql_nna, (persona_id, datos["fecha_nacimiento"]))
+            
+            conexion.commit()
+            return {
+                "status": "success", 
+                "message": "NNA creado correctamente", 
+                "id": persona_id
+            }
 
         except IntegrityError as e:
             return {"error": f"Error de integridad: {str(e)}", "status": "error"}
         except Error as e:
             return {"error": f"Error de BD al crear NNA: {str(e)}", "status": "error"}
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
 
     def obtener_por_id(self, persona_id: int) -> Optional[dict]:
         """Busca un registro de NNA por su ID"""
@@ -112,13 +116,17 @@ class NNAModel:
             return None
 
         try:
-            with conexion:
-                cursor = conexion.cursor()
-                cursor.execute(sql, (persona_id,))
-                fila = cursor.fetchone()
-                return self._mapear_nna(fila)
+            conexion.row_factory = sqlite3.Row
+            cursor = conexion.cursor()
+            cursor.execute(sql, (persona_id,))
+            fila = cursor.fetchone()
+            return dict(fila) if fila else None
         except Error as e:
-            raise Error(f"Error al obtener NNA por ID: {e}")
+            print(f"Error al obtener NNA por ID: {e}")
+            return None
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
 
     def obtener_por_nombre(self, primer_nombre: str, primer_apellido: str) -> List[dict]:
         """Busca registros de NNA por nombre y apellido"""
@@ -136,13 +144,17 @@ class NNAModel:
             return []
 
         try:
-            with conexion:
-                cursor = conexion.cursor()
-                cursor.execute(sql, (primer_nombre, primer_apellido))
-                filas = cursor.fetchall()
-                return [self._mapear_nna(fila) for fila in filas]
+            conexion.row_factory = sqlite3.Row
+            cursor = conexion.cursor()
+            cursor.execute(sql, (primer_nombre, primer_apellido))
+            filas = cursor.fetchall()
+            return [dict(fila) for fila in filas]
         except Error as e:
-            raise Error(f"Error al obtener NNA por nombre: {e}")
+            print(f"Error al obtener NNA por nombre: {e}")
+            return []
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
 
     def listar_todos(self) -> List[dict]:
         """Lista todos los registros de NNA activos"""
@@ -160,13 +172,17 @@ class NNAModel:
             return []
 
         try:
-            with conexion:
-                cursor = conexion.cursor()
-                cursor.execute(sql)
-                filas = cursor.fetchall()
-                return [self._mapear_nna(fila) for fila in filas]
+            conexion.row_factory = sqlite3.Row
+            cursor = conexion.cursor()
+            cursor.execute(sql)
+            filas = cursor.fetchall()
+            return [dict(fila) for fila in filas]
         except Error as e:
-            raise Error(f"Error al listar NNA: {e}")
+            print(f"Error al listar NNA: {e}")
+            return []
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
 
     def actualizar_nna(self, persona_id: int, datos: dict) -> dict:
         """Actualiza los datos de un NNA"""
@@ -206,30 +222,33 @@ class NNAModel:
             return {"error": "No se pudo establecer conexión para actualizar", "status": "error"}
 
         try:
-            with conexion:
-                cursor = conexion.cursor()
+            cursor = conexion.cursor()
+            
+            # Actualizar persona si hay cambios
+            if updates_persona:
+                set_clause = ", ".join([f"{k} = ?" for k in updates_persona.keys()])
+                valores = list(updates_persona.values())
+                valores.append(persona_id)
                 
-                # Actualizar persona si hay cambios
-                if updates_persona:
-                    set_clause = ", ".join([f"{k} = ?" for k in updates_persona.keys()])
-                    valores = list(updates_persona.values())
-                    valores.append(persona_id)
-                    
-                    cursor.execute(f"UPDATE persona SET {set_clause} WHERE id = ?", valores)
-                
-                # Actualizar nna si hay cambios
-                if updates_nna:
-                    cursor.execute(
-                        "UPDATE nna SET fecha_nacimiento = ? WHERE persona_id = ?",
-                        (updates_nna["fecha_nacimiento"], persona_id)
-                    )
-                
-                return {"status": "success", "message": "NNA actualizado correctamente"}
+                cursor.execute(f"UPDATE persona SET {set_clause} WHERE id = ?", valores)
+            
+            # Actualizar nna si hay cambios
+            if updates_nna:
+                cursor.execute(
+                    "UPDATE nna SET fecha_nacimiento = ? WHERE persona_id = ?",
+                    (updates_nna["fecha_nacimiento"], persona_id)
+                )
+            
+            conexion.commit()
+            return {"status": "success", "message": "NNA actualizado correctamente"}
                 
         except IntegrityError as e:
             return {"error": f"Error de integridad al actualizar: {str(e)}", "status": "error"}
         except Error as e:
             return {"error": f"Error de BD al actualizar NNA: {str(e)}", "status": "error"}
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
 
     def eliminar_nna(self, persona_id: int) -> dict:
         """Realiza un borrado lógico del NNA"""
@@ -241,14 +260,17 @@ class NNAModel:
             return {"error": "No se pudo establecer conexión para eliminar", "status": "error"}
 
         try:
-            with conexion:
-                cursor = conexion.cursor()
-                cursor.execute(sql, (persona_id,))
-                
-                if cursor.rowcount > 0:
-                    return {"status": "success", "message": "NNA eliminado correctamente"}
-                else:
-                    return {"error": "No se encontró el NNA con el ID especificado", "status": "error"}
+            cursor = conexion.cursor()
+            cursor.execute(sql, (persona_id,))
+            conexion.commit()
+            
+            if cursor.rowcount > 0:
+                return {"status": "success", "message": "NNA eliminado correctamente"}
+            else:
+                return {"error": "No se encontró el NNA con el ID especificado", "status": "error"}
                     
         except Error as e:
             return {"error": f"Error de BD al eliminar NNA: {str(e)}", "status": "error"}
+        finally:
+            if conexion:
+                self.db.cerrarConexion(conexion)
