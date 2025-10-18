@@ -1,6 +1,12 @@
 # funcion_vista_ue.py
 from customtkinter import *
-from modulo_Gestion_UE import crear, leer, actualizar, eliminar
+import sys
+import os
+
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from controllers.unidad_educativa_controller import crear, leer, actualizar, eliminar
 
 def mostrar_resultado(ventana, resultado):
     ventana_resultado = CTkToplevel(ventana)
@@ -288,7 +294,7 @@ def vista_actualizar():
         # Solo enviar campos que tengan contenido
         datos_actualizar = {}
         if campos["nombre"].get(): datos_actualizar["nombre"] = campos["nombre"].get()
-        if campos["nombre_director"].get(): datos_actualizar["nombre_director"] = campos["nombre_director"].get()
+        if campos["nombre_director"].get(): datos_actualizar["director"] = campos["nombre_director"].get()
         if campos["tipo"].get(): datos_actualizar["tipo"] = campos["tipo"].get().replace("🏛️ ", "").replace("💼 ", "").replace("🏢 ", "")
         if telefono: datos_actualizar["telefono"] = telefono
         if campos["direccion"].get(): datos_actualizar["direccion"] = campos["direccion"].get()
