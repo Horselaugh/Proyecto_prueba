@@ -1,6 +1,12 @@
 # funcion_vista_matricula.py
 from customtkinter import *
-from modulo_gestion_matricula import crear, leer, actualizar, eliminar
+import sys
+import os
+
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from controllers.matricula_controller import crear, leer, actualizar, eliminar
 
 def mostrar_resultado(ventana, resultado):
     ventana_resultado = CTkToplevel(ventana)
