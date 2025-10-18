@@ -1,10 +1,46 @@
-# base_de_datos/db_initializer.py
-
-from database_connector import Database
+# database_connector.py
+import sqlite3
 from sqlite3 import Error
 
-# Script SQL que contiene todas las sentencias CREATE TABLE
-SQL_SCRIPT_CREACION = """
+class Database:
+    
+    def __init__(self, db_archivo="Proyecto_ultima.db"):
+        self.db_archivo = db_archivo
+        self.conexion = None
+        # Verificar e inicializar la base de datos automáticamente
+        self._inicializar_base_datos()
+
+    def _inicializar_base_datos(self):
+        """
+        Verifica si las tablas existen y las crea si es necesario
+        """
+        try:
+            # Primero crear una conexión temporal para verificar
+            temp_conn = sqlite3.connect(self.db_archivo)
+            cursor = temp_conn.cursor()
+            
+            # Verificar si la tabla persona existe (como indicador principal)
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='persona'")
+            tabla_persona_existe = cursor.fetchone()
+            
+            temp_conn.close()
+            
+            if not tabla_persona_existe:
+                print("🔄 Inicializando base de datos por primera vez...")
+                self._crear_tablas()
+                self._insertar_datos_catalogo()
+                print("✅ Base de datos inicializada correctamente")
+            else:
+                print("✅ Base de datos ya está inicializada")
+                
+        except Error as e:
+            print(f"❌ Error al verificar/inicializar base de datos: {e}")
+
+    def _crear_tablas(self):
+        """
+        Crea todas las tablas del sistema
+        """
+        SQL_SCRIPT_CREACION = """
 -- Habilitar la integridad referencial
 PRAGMA foreign_keys = ON;
 
@@ -133,7 +169,6 @@ CREATE TABLE IF NOT EXISTS denunciante(
     denuncia_id INTEGER NOT NULL,
     persona_id INTEGER, -- Puede ser NULL si es anónimo
     declaracion TEXT NOT NULL,
-    -- El campo anonimo es redundante en SQLite, la clave es manejar persona_id como NULL
     lesiones TEXT, 
     PRIMARY KEY (denuncia_id, persona_id),
     FOREIGN KEY (denuncia_id) REFERENCES denuncia(id) ON DELETE CASCADE,
@@ -184,30 +219,99 @@ CREATE TABLE IF NOT EXISTS cargo(
     requiere_resolucion BOOLEAN DEFAULT FALSE
 );
 """
+        conn = None
+        try:
+            conn = self.crearConexion()
+            if conn:
+                conn.executescript(SQL_SCRIPT_CREACION)
+                print("✅ Tablas creadas exitosamente")
+        except Error as e:
+            print(f"❌ Error al crear tablas: {e}")
+        finally:
+            if conn:
+                self.cerrarConexion()
 
-def crear_tablas():
-    """
-    Crea todas las tablas de la base de datos definidas en el script SQL.
-    Utiliza el gestor de conexión (Database) para obtener la conexión.
-    """
-    db = Database()
-    conexion = db.obtener_conexion()
-    
-    if conexion is None:
-        print("Error: No se pudo establecer conexión para crear las tablas.")
-        return False
-    
-    try:
-        with conexion:
-            # Usamos executescript para ejecutar múltiples sentencias SQL
-            conexion.executescript(SQL_SCRIPT_CREACION)
-            print("✔️ Todas las tablas del sistema han sido creadas exitosamente.")
-            return True
+    def _insertar_datos_catalogo(self):
+        """
+        Inserta datos básicos en las tablas de catálogo
+        """
+        conn = None
+        try:
+            conn = self.crearConexion()
+            if not conn:
+                return
+
+            cursor = conn.cursor()
             
-    except Error as e:
-        print(f"❌ Ha ocurrido un error mientras se estaban creando las tablas: {str(e)}")
-        return False
+            # Insertar parentescos básicos
+            parentescos = [
+                ('Padre', 'Parentesco paterno'),
+                ('Madre', 'Parentesco materno'),
+                ('Hermano/a', 'Parentesco fraternal'),
+                ('Tío/a', 'Parentesco de tío'),
+                ('Abuelo/a', 'Parentesco de abuelo'),
+                ('Primo/a', 'Parentesco de primo'),
+                ('Otro', 'Otro tipo de parentesco')
+            ]
+            
+            cursor.executemany(
+                "INSERT OR IGNORE INTO parentesco (nombre, descripcion) VALUES (?, ?)",
+                parentescos
+            )
+            
+            # Insertar cargos básicos
+            cargos = [
+                ('Consejero', True),
+                ('Coordinador', False),
+                ('Psicólogo', False),
+                ('Abogado', False),
+                ('Asistente Social', False)
+            ]
+            
+            cursor.executemany(
+                "INSERT OR IGNORE INTO cargo (nombre, requiere_resolucion) VALUES (?, ?)",
+                cargos
+            )
+            
+            # Insertar artículos básicos
+            articulos = [
+                ('ART001', 'Protección Integral', 'Medidas de protección integral para NNA'),
+                ('ART002', 'Derecho a la Educación', 'Garantizar el acceso a la educación'),
+                ('ART003', 'Derecho a la Salud', 'Acceso a servicios de salud'),
+                ('ART004', 'Protección contra Violencia', 'Protección contra toda forma de violencia')
+            ]
+            
+            cursor.executemany(
+                "INSERT OR IGNORE INTO articulos (codigo, articulo, descripcion) VALUES (?, ?, ?)",
+                articulos
+            )
+            
+            conn.commit()
+            print("✅ Datos de catálogo insertados correctamente")
+            
+        except Error as e:
+            print(f"❌ Error al insertar datos de catálogo: {e}")
+        finally:
+            if conn:
+                self.cerrarConexion()
 
-# Ejemplo de uso (opcional)
-if __name__ == '__main__':
-    crear_tablas()
+    # Se define la función de crear la conexión a la base de datos
+    def crearConexion(self):
+        try:
+            self.conexion = sqlite3.connect(self.db_archivo)
+            # Habilitar claves foráneas
+            self.conexion.execute("PRAGMA foreign_keys = ON")
+            return self.conexion
+        
+        except Error as e:
+            print(f"❌ Error: {e}. Al tratar de conectar a la base de datos")
+            return None
+    
+    # Se define la función que cierra la conexión con la base de datos
+    def cerrarConexion(self):
+        if self.conexion:
+            self.conexion.close()
+            self.conexion = None
+
+# Crear una instancia global para usar en otros módulos
+database = Database()

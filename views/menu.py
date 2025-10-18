@@ -1,6 +1,11 @@
+# menu.py
 import customtkinter as ctk
 from tkinter import messagebox
 import sys
+import os
+
+# Configurar el path para importaciones
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Configuración de apariencia
 ctk.set_appearance_mode("dark")
@@ -21,6 +26,9 @@ class MenuApp(ctk.CTk):
         
         # Configurar layout principal
         self.setup_main_layout()
+        
+        # Manejar cierre de ventana
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def setup_main_layout(self):
         """Configurar el layout principal del menú"""
@@ -142,8 +150,8 @@ class MenuApp(ctk.CTk):
         # Botón de cerrar sesión
         logout_button = ctk.CTkButton(
             control_buttons_frame,
-            text="🚪 Cerrar Sesión",
-            command=self.cerrar_sesion,
+            text="🚪 Salir del Sistema",
+            command=self.on_closing,
             height=40,
             font=("Arial", 14, "bold"),
             fg_color="#e74c3c",
@@ -194,63 +202,117 @@ class MenuApp(ctk.CTk):
     def gestion_nna(self):
         """Abrir gestión de NNA"""
         try:
-            from funcion_vista_nna import main
-            main()
+            # Importar dentro del método para evitar problemas de importación circular
+            import importlib
+            import sys
+            import os
+            
+            # Agregar el directorio de vistas al path
+            views_dir = os.path.join(os.path.dirname(__file__), 'views')
+            if views_dir not in sys.path:
+                sys.path.append(views_dir)
+            
+            # Intentar importar dinámicamente
+            from views.funcion_vista_nna import main as nna_main
+            nna_main()
         except ImportError as e:
-            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo NNA: {str(e)}")
+            messagebox.showwarning("⚠️ Módulo No Disponible", 
+                                f"El módulo de Gestión de NNA no está disponible.\n\nError: {str(e)}")
         except Exception as e:
-            messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def gestion_familiares(self):
         """Abrir gestión de Familiares"""
         try:
-            from funcion_vista_fami import main
-            main()
+            # Importar dentro del método
+            import sys
+            import os
+            
+            views_dir = os.path.join(os.path.dirname(__file__), 'views')
+            if views_dir not in sys.path:
+                sys.path.append(views_dir)
+                
+            from views.funcion_vista_fami import main as fami_main
+            # Crear una nueva ventana para familiares
+            fami_main()
         except ImportError as e:
-            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo Familiares: {str(e)}")
+            messagebox.showwarning("⚠️ Módulo No Disponible", 
+                                f"El módulo de Gestión de Familiares no está disponible.\n\nError: {str(e)}")
         except Exception as e:
-            messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def gestion_ue(self):
         """Abrir gestión de Unidades Educativas"""
         try:
-            from funcion_vista_ue import main
-            main()
+            import sys
+            import os
+            
+            views_dir = os.path.join(os.path.dirname(__file__), 'views')
+            if views_dir not in sys.path:
+                sys.path.append(views_dir)
+                
+            from views.funcion_vista_ue import main as ue_main
+            ue_main()
         except ImportError as e:
-            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo UE: {str(e)}")
+            messagebox.showwarning("⚠️ Módulo No Disponible", 
+                                f"El módulo de Unidades Educativas no está disponible.\n\nError: {str(e)}")
         except Exception as e:
-            messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def gestion_matriculas(self):
         """Abrir gestión de Matrículas"""
         try:
-            from funcion_vista_matricula import main
-            main()
+            import sys
+            import os
+            
+            views_dir = os.path.join(os.path.dirname(__file__), 'views')
+            if views_dir not in sys.path:
+                sys.path.append(views_dir)
+                
+            from views.funcion_vista_matricula import main as matricula_main
+            matricula_main()
         except ImportError as e:
-            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo Matrículas: {str(e)}")
+            messagebox.showwarning("⚠️ Módulo No Disponible", 
+                                f"El módulo de Matrículas no está disponible.\n\nError: {str(e)}")
         except Exception as e:
-            messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def gestion_articulos(self):
         """Abrir gestión de Artículos"""
         try:
-            from funcion_vista_art import main
-            main()
+            import sys
+            import os
+            
+            views_dir = os.path.join(os.path.dirname(__file__), 'views')
+            if views_dir not in sys.path:
+                sys.path.append(views_dir)
+                
+            from views.funcion_vista_art import main as art_main
+            art_main()
         except ImportError as e:
-            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo Artículos: {str(e)}")
+            messagebox.showwarning("⚠️ Módulo No Disponible", 
+                                f"El módulo de Artículos no está disponible.\n\nError: {str(e)}")
         except Exception as e:
-            messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def gestion_personal(self):
         """Abrir gestión de Personal"""
         try:
-            from funcion_vista_personal import PersonalVista
+            import sys
+            import os
+            
+            views_dir = os.path.join(os.path.dirname(__file__), 'views')
+            if views_dir not in sys.path:
+                sys.path.append(views_dir)
+                
+            from views.funcion_vista_personal import PersonalVista
             # PersonalVista crea su propia ventana Tk()
-            PersonalVista()
+            personal_window = PersonalVista()
         except ImportError as e:
-            messagebox.showerror("❌ Error", f"No se pudo abrir el módulo Personal: {str(e)}")
+            messagebox.showwarning("⚠️ Módulo No Disponible", 
+                                f"El módulo de Personal no está disponible.\n\nError: {str(e)}")
         except Exception as e:
-            messagebox.showerror("❌ Error", f"Error inesperado: {str(e)}")
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def mostrar_ayuda(self):
         """Mostrar información de ayuda del sistema"""
@@ -282,26 +344,46 @@ Consejo de Protección de Niños, Niñas y Adolescentes
         """
         messagebox.showinfo("❓ Ayuda del Sistema", ayuda_texto)
     
-    def cerrar_sesion(self):
-        """Cerrar sesión y volver al login"""
-        if messagebox.askyesno("🚪 Cerrar Sesión", "¿Está seguro de que desea cerrar sesión?"):
+    def on_closing(self):
+        """Manejar el cierre de la aplicación"""
+        if messagebox.askyesno("🚪 Salir del Sistema", "¿Está seguro de que desea salir del sistema?"):
+            # Limpiar y destruir
+            self.cleanup()
             self.destroy()
-            # Volver al login
-            try:
-                from views.funcion_login import LoginApp
-                login_app = LoginApp()
-                login_app.run()
-            except ImportError:
-                # Si no se puede volver al login, cerrar completamente
-                sys.exit(0)
+            sys.exit(0)
 
-if __name__ == "__main__":
-    # Si se ejecuta menu.py directamente, iniciar el login primero
+    def cleanup(self):
+        """Limpiar recursos antes de cerrar"""
+        try:
+            # Cancelar todos los eventos pendientes
+            for after_id in self.tk.eval('after info').split():
+                self.after_cancel(after_id)
+        except:
+            pass
+
+def iniciar_sistema():
+    """Función para iniciar el sistema completo"""
     try:
+        # Primero intentar con login
         from funcion_login import LoginApp
         login_app = LoginApp()
         login_app.run()
     except ImportError:
-        # Si no existe el login, iniciar el menú directamente
+        # Si no hay login, ir directamente al menú principal
         app = MenuApp()
         app.mainloop()
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo iniciar el sistema: {str(e)}")
+        sys.exit(1)
+
+def main():
+    """Función principal alternativa"""
+    app = MenuApp()
+    app.mainloop()
+
+if __name__ == "__main__":
+    # Opción 1: Con login
+    iniciar_sistema()
+    
+    # Opción 2: Directo al menú (descomenta la línea siguiente y comenta la anterior)
+    # main()
