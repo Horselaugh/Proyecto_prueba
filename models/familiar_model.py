@@ -1,14 +1,17 @@
-# Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# familiar_model.py
+import sys
+import os
 
-import sqlite3
-from sqlite3 import Row
-from typing import List, Optional
-from models.database_connector import Database  # Cambiar a nuestro Database
+# Agregar el directorio actual al path para importar database_connector
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
+from database_connector import Database
 
 class FamiliarModel:
     def __init__(self):
-        self.conn = None
+        self.db = Database()
     
     def _validar_telefono(self, telefono):
         """Valida que el teléfono tenga 11 dígitos"""
@@ -22,19 +25,6 @@ class FamiliarModel:
                       segundo_nombre=None, segundo_apellido=None, tutor=False):
         """
         Crea un nuevo familiar en la base de datos
-        
-        Args:
-            primer_nombre (str): Primer nombre del familiar
-            primer_apellido (str): Primer apellido del familiar
-            parentesco_id (int): ID del parentesco
-            direccion (str): Dirección del familiar
-            telefono (str): Teléfono (11 dígitos)
-            segundo_nombre (str, optional): Segundo nombre
-            segundo_apellido (str, optional): Segundo apellido
-            tutor (bool, optional): Indica si es tutor
-        
-        Returns:
-            dict: Resultado de la operación
         """
         # Validaciones
         if not self._validar_campos_obligatorios(primer_nombre, primer_apellido, parentesco_id):
@@ -46,7 +36,10 @@ class FamiliarModel:
         # Conexión y operación en BD
         conn = None
         try:
-            conn = conec_db()
+            conn = self.db.crearConexion()
+            if not conn:
+                return {"error": "No se pudo conectar a la base de datos", "status": "error"}
+            
             cursor = conn.cursor()
             
             # Primero insertar en persona
@@ -57,7 +50,7 @@ class FamiliarModel:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (None, primer_nombre, segundo_nombre, primer_apellido, 
-                 segundo_apellido, 'F', direccion, telefono)  # género temporal
+                 segundo_apellido, 'F', direccion, telefono)
             )
             persona_id = cursor.lastrowid
             
@@ -76,26 +69,23 @@ class FamiliarModel:
                 "id": persona_id
             }
         except Exception as e:
+            if conn:
+                conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                cerrar_db(conn)
+                self.db.cerrarConexion()
     
     def buscar_familiar(self, id=None, primer_nombre=None, primer_apellido=None):
         """
         Busca un familiar por ID o por nombre y apellido
-        
-        Args:
-            id (int, optional): ID del familiar
-            primer_nombre (str, optional): Primer nombre
-            primer_apellido (str, optional): Primer apellido
-        
-        Returns:
-            dict: Resultado de la búsqueda
         """
         conn = None
         try:
-            conn = conec_db()
+            conn = self.db.crearConexion()
+            if not conn:
+                return {"error": "No se pudo conectar a la base de datos", "status": "error"}
+            
             cursor = conn.cursor()
             
             if id:
@@ -122,25 +112,12 @@ class FamiliarModel:
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                cerrar_db(conn)
+                self.db.cerrarConexion()
     
     def actualizar_familiar(self, id, primer_nombre=None, segundo_nombre=None, primer_apellido=None, 
                            segundo_apellido=None, direccion=None, telefono=None, tutor=None):
         """
         Actualiza los datos de un familiar
-        
-        Args:
-            id (int): ID del familiar a actualizar
-            primer_nombre (str, optional): Nuevo primer nombre
-            segundo_nombre (str, optional): Nuevo segundo nombre
-            primer_apellido (str, optional): Nuevo primer apellido
-            segundo_apellido (str, optional): Nuevo segundo apellido
-            direccion (str, optional): Nueva dirección
-            telefono (str, optional): Nuevo teléfono (11 dígitos)
-            tutor (bool, optional): Nuevo estado de tutor
-        
-        Returns:
-            dict: Resultado de la operación
         """
         updates = {}
         params = []
@@ -167,7 +144,10 @@ class FamiliarModel:
         
         conn = None
         try:
-            conn = conec_db()
+            conn = self.db.crearConexion()
+            if not conn:
+                return {"error": "No se pudo conectar a la base de datos", "status": "error"}
+            
             cursor = conn.cursor()
             
             # Actualizar persona
@@ -184,24 +164,23 @@ class FamiliarModel:
             conn.commit()
             return {"status": "success", "message": "Familiar actualizado correctamente"}
         except Exception as e:
+            if conn:
+                conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                cerrar_db(conn)
+                self.db.cerrarConexion()
     
     def eliminar_familiar(self, id):
         """
         Elimina un familiar de la base de datos
-        
-        Args:
-            id (int): ID del familiar a eliminar
-        
-        Returns:
-            dict: Resultado de la operación
         """
         conn = None
         try:
-            conn = conec_db()
+            conn = self.db.crearConexion()
+            if not conn:
+                return {"error": "No se pudo conectar a la base de datos", "status": "error"}
+            
             cursor = conn.cursor()
             
             # Verificar existencia
@@ -214,34 +193,9 @@ class FamiliarModel:
             conn.commit()
             return {"status": "success", "message": "Familiar eliminado correctamente"}
         except Exception as e:
+            if conn:
+                conn.rollback()
             return {"error": str(e), "status": "error"}
         finally:
             if conn:
-                cerrar_db(conn)
-    
-    def obtener_todos_los_familiares(self):
-        """
-        Obtiene todos los familiares de la base de datos
-        
-        Returns:
-            dict: Lista de todos los familiares
-        """
-        conn = None
-        try:
-            conn = conec_db()
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT p.*, f.tutor 
-                FROM persona p 
-                JOIN familiar f ON p.id = f.persona_id 
-                ORDER BY p.primer_nombre, p.primer_apellido
-            ''')
-            
-            rows = cursor.fetchall()
-            return {"data": rows, "status": "success"}
-        except Exception as e:
-            return {"error": str(e), "status": "error"}
-        finally:
-            if conn:
-                cerrar_db(conn)
+                self.db.cerrarConexion()

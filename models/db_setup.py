@@ -1,6 +1,6 @@
 # base_de_datos/db_initializer.py
 
-from base_de_datos.conexion_database import Database
+from database_connector import Database
 from sqlite3 import Error
 
 # Script SQL que contiene todas las sentencias CREATE TABLE

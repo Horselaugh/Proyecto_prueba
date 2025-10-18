@@ -1,5 +1,10 @@
 from customtkinter import *
-from modulo_Gestion_fami import crear, leer, actualizar, eliminar
+import sys
+import os
+
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from controllers.familiar_controller import crear, leer, actualizar, eliminar
 
 def mostrar_resultado(ventana, resultado):
     ventana_resultado = CTkToplevel(ventana)

@@ -1,147 +1,39 @@
+# familiar_controller.py
 import sys
 import os
+
 # Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
 
-from models.nna_model import NNAModel
+from models.familiar_model import FamiliarModel
 
-def crear(primer_nombre, primer_apellido, parentesco_id, direccion, telefono, segundo_nombre=None, segundo_apellido=None, tutor=False):
-    # Validaciones
-    if not primer_nombre or not primer_apellido or not parentesco_id:
-        return {"error": "Nombre, apellido y parentesco son obligatorios", "status": "error"}
-    if len(telefono) != 11 or not telefono.isdigit():
-        return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
-    
-    # Conexión y operación en BD
-    conn = None
-    try:
-        conn = conec_db()
-        cursor = conn.cursor()
-        
-        # Primero insertar en persona
-        cursor.execute('''
-            INSERT INTO persona (
-                documento_identidad, primer_nombre, segundo_nombre, 
-                primer_apellido, segundo_apellido, genero, direccion, telefono
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''',
-            (None, primer_nombre, segundo_nombre, primer_apellido, 
-             segundo_apellido, 'F', direccion, telefono)  # género temporal
-        )
-        persona_id = cursor.lastrowid
-        
-        # Luego insertar en familiar
-        cursor.execute('''
-            INSERT INTO familiar (persona_id, tutor) 
-            VALUES (?, ?)
-            ''',
-            (persona_id, tutor)
-        )
-        
-        conn.commit()
-        return {"status": "success", "message": "Familiar creado correctamente", "id": persona_id}
-    except Exception as e:
-        return {"error": str(e), "status": "error"}
-    finally:
-        if conn:
-            cerrar_db(conn)
+modelo_familiar = FamiliarModel()
+
+def crear(primer_nombre, primer_apellido, parentesco_id, direccion, telefono, 
+          segundo_nombre=None, segundo_apellido=None, tutor=False):
+    return modelo_familiar.crear_familiar(
+        primer_nombre=primer_nombre,
+        primer_apellido=primer_apellido,
+        parentesco_id=parentesco_id,
+        direccion=direccion,
+        telefono=telefono,
+        segundo_nombre=segundo_nombre,
+        segundo_apellido=segundo_apellido,
+        tutor=tutor
+    )
 
 def leer(id=None, primer_nombre=None, primer_apellido=None):
-    conn = None
-    try:
-        conn = conec_db()
-        cursor = conn.cursor()
-        
-        if id:
-            cursor.execute('''
-                SELECT p.*, f.tutor 
-                FROM persona p 
-                JOIN familiar f ON p.id = f.persona_id 
-                WHERE p.id = ?''', (id,))
-        elif primer_nombre and primer_apellido:
-            cursor.execute('''
-                SELECT p.*, f.tutor 
-                FROM persona p 
-                JOIN familiar f ON p.id = f.persona_id 
-                WHERE p.primer_nombre = ? AND p.primer_apellido = ?''', 
-                (primer_nombre, primer_apellido))
-        else:
-            return {"error": "Se necesita ID o nombre y apellido", "status": "error"}
-            
-        rows = cursor.fetchall()
-        if not rows:
-            return {"error": "No se encontraron registros", "status": "error"}
-        return {"data": rows, "status": "success"}
-    except Exception as e:
-        return {"error": str(e), "status": "error"}
-    finally:
-        if conn:
-            cerrar_db(conn)
+    return modelo_familiar.buscar_familiar(
+        id=id,
+        primer_nombre=primer_nombre,
+        primer_apellido=primer_apellido
+    )
 
-def actualizar(id, primer_nombre=None, segundo_nombre=None, primer_apellido=None, 
-               segundo_apellido=None, direccion=None, telefono=None, tutor=None):
-    updates = {}
-    params = []
-    
-    if primer_nombre:
-        updates["primer_nombre"] = primer_nombre
-    if segundo_nombre is not None:
-        updates["segundo_nombre"] = segundo_nombre
-    if primer_apellido:
-        updates["primer_apellido"] = primer_apellido
-    if segundo_apellido is not None:
-        updates["segundo_apellido"] = segundo_apellido
-    if direccion:
-        updates["direccion"] = direccion
-    if telefono:
-        if len(telefono) != 11 or not telefono.isdigit():
-            return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
-        updates["telefono"] = telefono
-    
-    if not updates and tutor is None:
-        return {"error": "No hay datos para actualizar", "status": "error"}
-    
-    conn = None
-    try:
-        conn = conec_db()
-        cursor = conn.cursor()
-        
-        # Actualizar persona
-        if updates:
-            set_clause = ", ".join([f"{k} = ?" for k in updates.keys()])
-            params = list(updates.values())
-            params.append(id)
-            cursor.execute(f'UPDATE persona SET {set_clause} WHERE id = ?', params)
-        
-        # Actualizar familiar si se especifica tutor
-        if tutor is not None:
-            cursor.execute('UPDATE familiar SET tutor = ? WHERE persona_id = ?', (tutor, id))
-        
-        conn.commit()
-        return {"status": "success", "message": "Familiar actualizado correctamente"}
-    except Exception as e:
-        return {"error": str(e), "status": "error"}
-    finally:
-        if conn:
-            cerrar_db(conn)
+def actualizar(id, **kwargs):
+    return modelo_familiar.actualizar_familiar(id, **kwargs)
 
 def eliminar(id):
-    conn = None
-    try:
-        conn = conec_db()
-        cursor = conn.cursor()
-        
-        # Verificar existencia
-        cursor.execute('SELECT * FROM familiar WHERE persona_id = ?', (id,))
-        if not cursor.fetchone():
-            return {"error": "No existe familiar con ese ID", "status": "error"}
-        
-        # Eliminar (se eliminará en cascada de la tabla persona)
-        cursor.execute('DELETE FROM persona WHERE id = ?', (id,))
-        conn.commit()
-        return {"status": "success", "message": "Familiar eliminado correctamente"}
-    except Exception as e:
-        return {"error": str(e), "status": "error"}
-    finally:
-        if conn:
-            cerrar_db(conn)
+    return modelo_familiar.eliminar_familiar(id)
