@@ -1,5 +1,10 @@
-from models.personal_model import PersonalModel
 from sqlite3 import Error
+import sys
+import os
+
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from models.personal_model import PersonalModel
 
 class PersonalController:
     """Controlador para gestionar las operaciones de Personal"""

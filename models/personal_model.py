@@ -1,6 +1,17 @@
-from models.database_connector import Database
 from sqlite3 import Error, IntegrityError
 from typing import List, Dict, Optional
+
+# models/personal_model.py
+import sys
+import os
+# Agregar el directorio raíz al path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sqlite3 import Error, IntegrityError
+from typing import List, Dict, Optional
+
+# Ahora importa el módulo database_connector
+from models.database_connector import Database
 
 class PersonalModel:
     """Modelo para gestionar las operaciones de Personal en la base de datos"""
@@ -38,7 +49,7 @@ class PersonalModel:
         VALUES (?, ?, ?, TRUE, ?, ?) 
         """
         
-        conexion = self.db.obtener_conexion()
+        conexion = self.db.crearConexion()
         if conexion is None:
             raise Error("No se pudo establecer conexión con la base de datos.")
 
@@ -80,7 +91,7 @@ class PersonalModel:
         INNER JOIN personal pe ON p.id = pe.persona_id
         WHERE p.id = ?;
         """
-        conexion = self.db.obtener_conexion()
+        conexion = self.db.crearConexion()
         if conexion is None:
             return None
 
@@ -103,7 +114,7 @@ class PersonalModel:
         INNER JOIN personal pe ON p.id = pe.persona_id
         WHERE p.activo = TRUE;
         """
-        conexion = self.db.obtener_conexion()
+        conexion = self.db.crearConexion()
         if conexion is None:
             return []
 
@@ -135,7 +146,7 @@ class PersonalModel:
         WHERE persona_id = ?;
         """
         
-        conexion = self.db.obtener_conexion()
+        conexion = self.db.crearConexion()
         if conexion is None:
             raise Error("No se pudo establecer conexión para actualizar.")
 
@@ -167,7 +178,7 @@ class PersonalModel:
         
         sql = "UPDATE persona SET activo = FALSE WHERE id = ?;"
         
-        conexion = self.db.obtener_conexion()
+        conexion = self.db.crearConexion()
         if conexion is None:
             raise Error("No se pudo establecer conexión para la eliminación.")
 
@@ -189,7 +200,7 @@ class PersonalModel:
         INNER JOIN personal pe ON p.id = pe.persona_id
         WHERE pe.nombre_usuario = ?;
         """
-        conexion = self.db.obtener_conexion()
+        conexion = self.db.crearConexion()
         if conexion is None:
             return None
 

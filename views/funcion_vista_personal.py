@@ -1,11 +1,16 @@
+import sys
+import os
 import customtkinter as ctk
 from tkinter import messagebox
-from models.personal_model import PersonalModel
+
+# Agregar el directorio raíz del proyecto al path de Python
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from controllers.personal_controller import PersonalController
 
 class PersonalVista():
     def __init__(self):
-        self.model = PersonalModel()
+        self.controller = PersonalController()
         self.root = ctk.CTk()
         
         # Configurar ventana principal
@@ -117,34 +122,37 @@ class PersonalVista():
 
     def crear_personal(self):
         """Maneja la creación de nuevo personal"""
-        datos = {
-            "cedula": self.cedula.get(),
-            "primer_nombre": self.primer_nombre.get(),
-            "segundo_nombre": self.segundo_nombre.get(),
-            "primer_apellido": self.primer_apellido.get(),
-            "segundo_apellido": self.segundo_apellido.get(),
-            "telefono": self.telefono.get(),
-            "nombre_usuario": self.nombre_usuario.get(),
-            "password": self.password.get()
-        }
+        # Recoger los datos de las variables
+        cedula = self.cedula.get()
+        primer_nombre = self.primer_nombre.get()
+        segundo_nombre = self.segundo_nombre.get()
+        primer_apellido = self.primer_apellido.get()
+        segundo_apellido = self.segundo_apellido.get()
+        telefono = self.telefono.get()
+        nombre_usuario = self.nombre_usuario.get()
+        password = self.password.get()
 
         # Validaciones básicas
-        if not datos["cedula"] or not datos["primer_nombre"] or not datos["primer_apellido"]:
+        if not cedula or not primer_nombre or not primer_apellido:
             messagebox.showerror("❌ Error", "Cédula, primer nombre y primer apellido son obligatorios")
             return
 
-        if len(datos["telefono"]) != 11 or not datos["telefono"].isdigit():
+        if len(telefono) != 11 or not telefono.isdigit():
             messagebox.showerror("❌ Error", "El teléfono debe tener exactamente 11 dígitos")
             return
 
-        if not datos["nombre_usuario"] or not datos["password"]:
+        if not nombre_usuario or not password:
             messagebox.showerror("❌ Error", "Nombre de usuario y contraseña son obligatorios")
             return
 
         try:
-            persona_id = self.model.agregar_personal(**datos)
+            # Usar el controlador para agregar el personal
+            persona_id = self.controller.agregar_personal(
+                cedula, primer_nombre, segundo_nombre, primer_apellido, 
+                segundo_apellido, telefono, nombre_usuario, password
+            )
             if persona_id:
-                messagebox.showinfo("✅ Éxito", f"👤 Personal registrado correctamente.\n\n🆔 ID asignado: {persona_id}\n👤 Usuario: {datos['nombre_usuario']}")
+                messagebox.showinfo("✅ Éxito", f"👤 Personal registrado correctamente.\n\n🆔 ID asignado: {persona_id}\n👤 Usuario: {nombre_usuario}")
                 self.limpiar_formulario()
             else:
                 messagebox.showerror("❌ Error", "No se pudo registrar el personal")
