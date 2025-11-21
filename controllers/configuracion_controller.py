@@ -5,7 +5,7 @@ import os
 # Agregar las carpetas al path de Python
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'models'))
 
-from configuracion_model import ConfiguracionModel
+from ..models.configuracion_model import ConfiguracionModel
 import tkinter.messagebox as messagebox
 
 class ConfiguracionController:

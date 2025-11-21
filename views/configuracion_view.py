@@ -3,10 +3,10 @@ import tkinter.messagebox as messagebox
 import sys
 import os
 
-# Agregar las carpetas al path de Python
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'controllers'))
-
-from configuracion_controller import ConfiguracionController
+# --- CÓDIGO CORREGIDO ---
+# Si 'configuracion_controller.py' está directamente en la carpeta 'controllers'
+from controllers.configuracion_controller import ConfiguracionController
+# ------------------------
 
 class ConfiguracionView:
     """
