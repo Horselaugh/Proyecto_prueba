@@ -47,7 +47,7 @@ def main():
              font=("Arial", 28, "bold")).pack(pady=40)
     
     CTkLabel(frame_principal, text="Seleccione una operación:", 
-             font=("Arial", 18)).pack(pady=30)
+             font=("Arial", 18)).pack(pady=10)
 
     # Frame para botones
     frame_botones = CTkFrame(frame_principal, fg_color="transparent")
@@ -88,7 +88,7 @@ def vista_crear():
 
     # Título
     CTkLabel(ventana, text="➕ CREAR NUEVA UNIDAD EDUCATIVA", 
-             font=("Arial", 24, "bold")).grid(row=0, column=0, columnspan=2, pady=30)
+             font=("Arial", 24, "bold")).grid(row=0, column=0, columnspan=2, pady=10)
 
     # Campos de entrada para UE
     campos = {
@@ -151,7 +151,7 @@ def vista_leer():
     ventana.grid_columnconfigure(0, weight=1)
 
     # Título
-    CTkLabel(ventana, text="🔍 BUSCAR UNIDAD EDUCATIVA", font=("Arial", 24, "bold")).grid(row=0, column=0, pady=30)
+    CTkLabel(ventana, text="🔍 BUSCAR UNIDAD EDUCATIVA", font=("Arial", 24, "bold")).grid(row=0, column=0, pady=10)
 
     # Opciones de búsqueda
     CTkLabel(ventana, text="🔎 Buscar por:", font=("Arial", 18)).grid(row=1, column=0, sticky="w", padx=30, pady=15)
@@ -241,7 +241,7 @@ def vista_actualizar():
     
     # Frame para organizar mejor los elementos
     main_frame = CTkFrame(ventana, fg_color="#2e2e2e")
-    main_frame.grid(row=0, column=0, columnspan=2, padx=30, pady=30, sticky="nsew")
+    main_frame.grid(row=0, column=0, columnspan=2, padx=30, pady=10, sticky="nsew")
     main_frame.grid_columnconfigure(1, weight=1)
 
     # Título
@@ -321,7 +321,7 @@ def vista_eliminar():
     frame_principal.pack(expand=True, fill="both", padx=40, pady=40)
 
     CTkLabel(frame_principal, text="🗑️ ELIMINAR UNIDAD EDUCATIVA", 
-             font=("Arial", 24, "bold")).pack(pady=30)
+             font=("Arial", 24, "bold")).pack(pady=10)
 
     CTkLabel(frame_principal, text="🔢 ID de la UE a eliminar:", 
              font=("Arial", 18)).pack(pady=20)
@@ -350,7 +350,7 @@ def vista_eliminar():
             confirmacion.destroy()
         
         frame_botones = CTkFrame(confirmacion, fg_color="transparent")
-        frame_botones.pack(pady=30)
+        frame_botones.pack(pady=10)
         
         CTkButton(frame_botones, text="✅ Sí, Eliminar", command=confirmar, 
                  fg_color="#e74c3c", hover_color="#c0392b", height=45, font=("Arial", 16)).pack(side="left", padx=20)
@@ -359,7 +359,7 @@ def vista_eliminar():
 
     btn_eliminar = CTkButton(frame_principal, text="🗑️ ELIMINAR UNIDAD EDUCATIVA", command=ejecutar_eliminar,
                             height=55, font=("Arial", 18, "bold"), fg_color="#e74c3c", hover_color="#c0392b")
-    btn_eliminar.pack(pady=30)
+    btn_eliminar.pack(pady=10)
 
 if __name__ == "__main__":
     main()

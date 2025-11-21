@@ -165,7 +165,7 @@ def vista_crear():
 
     # Frame para botones
     button_frame = CTkFrame(main_frame, fg_color="transparent")
-    button_frame.grid(row=8, column=0, columnspan=2, pady=30)
+    button_frame.grid(row=8, column=0, columnspan=2, pady=10)
 
     btn_crear = CTkButton(
         button_frame,
@@ -188,7 +188,7 @@ def vista_leer():
     ventana.grid_columnconfigure(0, weight=1)
 
     main_frame = CTkFrame(ventana, fg_color="transparent")
-    main_frame.grid(row=0, column=0, sticky="nsew", padx=30, pady=30)
+    main_frame.grid(row=0, column=0, sticky="nsew", padx=30, pady=10)
     main_frame.grid_columnconfigure(0, weight=1)
 
     # Título
@@ -357,7 +357,7 @@ def vista_actualizar():
         mostrar_resultado(ventana, resultado)
 
     button_frame = CTkFrame(main_frame, fg_color="transparent")
-    button_frame.grid(row=10, column=0, columnspan=2, pady=30)
+    button_frame.grid(row=10, column=0, columnspan=2, pady=10)
 
     btn_actualizar = CTkButton(
         button_frame,
@@ -412,7 +412,7 @@ def vista_eliminar():
             confirmacion.destroy()
         
         frame_botones = CTkFrame(confirmacion, fg_color="transparent")
-        frame_botones.pack(pady=30)
+        frame_botones.pack(pady=10)
         
         CTkButton(frame_botones, text="✅ Sí, eliminar", command=confirmar, 
                  fg_color="#e74c3c", hover_color="#c0392b", height=40,

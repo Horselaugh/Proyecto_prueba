@@ -32,7 +32,7 @@ class ArticuloVista:
     def crear_interfaz(self):
         # Frame principal
         main_frame = ctk.CTkFrame(self.root, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=30, pady=30)
+        main_frame.pack(fill="both", expand=True, padx=30, pady=10)
 
         # Título
         title_label = ctk.CTkLabel(
@@ -106,7 +106,7 @@ class ArticuloVista:
 
         # Frame de botones
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        buttons_frame.pack(fill="x", pady=30)
+        buttons_frame.pack(fill="x", pady=10)
 
         botones = [
             ("➕ Agregar", lambda: self.eventos["agregar_articulo"](), "#27ae60"),
@@ -146,7 +146,7 @@ class ArticuloVista:
             text=mensaje,
             font=("Arial", 14),
             text_color=color
-        ).pack(expand=True, fill="both", padx=30, pady=30)
+        ).pack(expand=True, fill="both", padx=30, pady=10)
         
         ctk.CTkButton(
             msg_window,
