@@ -5,7 +5,7 @@ import os
 
 # --- CÓDIGO CORREGIDO ---
 # Si 'configuracion_controller.py' está directamente en la carpeta 'controllers'
-from controllers.configuracion_controller import ConfiguracionController
+from ..controllers.configuracion_controller import ConfiguracionController
 # ------------------------
 
 class ConfiguracionView:

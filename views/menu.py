@@ -57,34 +57,10 @@ class MenuApp(ctk.CTk):
             text_color="#7f8c8d"
         )
         subtitle_label.pack()
-
-        # Frame para los módulos
-        modules_frame = ctk.CTkFrame(main_container)
-        modules_frame.pack(fill="both", expand=True)
-
-        # Título de módulos
-        modules_title = ctk.CTkLabel(
-            modules_frame,
-            text="📋 MÓDULOS DEL SISTEMA",
-            font=("Arial", 20, "bold"),
-            text_color="#2e86ab"
-        )
-        modules_title.pack(pady=20)
-
-        # Grid para los botones de módulos
-        buttons_grid = ctk.CTkFrame(modules_frame, fg_color="transparent")
-        buttons_grid.pack(fill="both", expand=True, padx=50, pady=20)
-
-        # Configurar grid layout
-        buttons_grid.columnconfigure(0, weight=1)
-        buttons_grid.columnconfigure(1, weight=1)
-        buttons_grid.columnconfigure(2, weight=1)
-        buttons_grid.rowconfigure(0, weight=1)
-        buttons_grid.rowconfigure(1, weight=1)
-        buttons_grid.rowconfigure(2, weight=1)
-
+        
         # Definir módulos con emojis y colores
         modules = [
+            # ... (Módulos existentes: Gestión de NNA, Gestión de Familiares, Unidades Educativas, Gestión de Matrículas, Gestión de Artículos, Gestión de Personal)
             {
                 "emoji": "👦", "text": "Gestión de NNA", 
                 "command": self.gestion_nna, "color": "#3498db",
@@ -115,8 +91,50 @@ class MenuApp(ctk.CTk):
                 "command": self.gestion_personal, "color": "#34495e",
                 "description": "Gestionar usuarios\ndel sistema"
             },
+            # --- NUEVOS MÓDULOS ---
+            {
+                "emoji": "📌", "text": "Seguimiento Expedientes", 
+                "command": self.seguimiento_expedientes, "color": "#2ecc71", # Verde Esmeralda
+                "description": "Registrar y consultar\nel seguimiento de expedientes"
+            },
+            {
+                "emoji": "⚙️", "text": "Configuración del Sistema", 
+                "command": self.configuracion, "color": "#f1c40f", # Amarillo Girasol
+                "description": "Administración de Roles\ny Usuarios"
+            },
+            {
+                "emoji": "📊", "text": "Reportes y Estadísticas", 
+                "command": self.reportes, "color": "#e67e22", # Naranja Zanahoria
+                "description": "Visualizar reportes\ny datos estadísticos"
+            },
+            # ------------------------
         ]
+        
+        # Frame para los módulos
+        modules_frame = ctk.CTkFrame(main_container)
+        modules_frame.pack(fill="both", expand=True)
 
+        # Título de módulos
+        modules_title = ctk.CTkLabel(
+            modules_frame,
+            text="📋 MÓDULOS DEL SISTEMA",
+            font=("Arial", 20, "bold"),
+            text_color="#2e86ab"
+        )
+        modules_title.pack(pady=20)
+
+        # Grid para los botones de módulos
+        buttons_grid = ctk.CTkFrame(modules_frame, fg_color="transparent")
+        buttons_grid.pack(fill="both", expand=True, padx=50, pady=20)
+
+        # Configurar grid layout
+        buttons_grid.columnconfigure(0, weight=1)
+        buttons_grid.columnconfigure(1, weight=1)
+        buttons_grid.columnconfigure(2, weight=1)
+        buttons_grid.rowconfigure(0, weight=1)
+        buttons_grid.rowconfigure(1, weight=1)
+        buttons_grid.rowconfigure(2, weight=1)
+        
         # Crear botones en grid
         for i, module in enumerate(modules):
             row = i // 3
@@ -313,6 +331,54 @@ class MenuApp(ctk.CTk):
                                 f"El módulo de Personal no está disponible.\n\nError: {str(e)}")
         except Exception as e:
             messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
+            
+    def seguimiento_expedientes(self):
+        """Abrir módulo de Seguimiento de Expedientes"""
+        try:
+            # Importa y lanza la función main del archivo de vista.
+            # Se asume que funcion_vista_seguimiento_expedientes.py está en una ruta de Python accesible.
+            from funcion_vista_seguimiento_expedientes import main as seguimiento_main
+            seguimiento_main()
+        except ImportError as e:
+            messagebox.showwarning("⚠️ Módulo No Disponible", f"El módulo de Seguimiento de Expedientes no está disponible.\n\nError: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
+
+    def configuracion(self):
+        """Abrir módulo de Configuración (como ventana Toplevel)"""
+        try:
+            # La vista de configuración se abre en una nueva ventana Toplevel
+            from configuracion_view import ConfiguracionView
+            
+            config_window = ctk.CTkToplevel(self)
+            # Inicializa la vista de configuración
+            ConfiguracionView(config_window)
+            
+            config_window.protocol("WM_DELETE_WINDOW", config_window.destroy)
+            config_window.focus()
+            config_window.grab_set() # Convierte la ventana en modal
+        except ImportError as e:
+            messagebox.showwarning("⚠️ Módulo No Disponible", f"El módulo de Configuración no está disponible.\n\nError: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
+
+    def reportes(self):
+        """Abrir módulo de Reportes (como ventana Toplevel)"""
+        try:
+            # La vista de reportes se abre en una nueva ventana Toplevel
+            from reportes_view import ReportesView
+            
+            reportes_window = ctk.CTkToplevel(self)
+            # Inicializa la vista de reportes
+            ReportesView(reportes_window) 
+            
+            reportes_window.protocol("WM_DELETE_WINDOW", reportes_window.destroy)
+            reportes_window.focus()
+            reportes_window.grab_set() # Convierte la ventana en modal
+        except ImportError as e:
+            messagebox.showwarning("⚠️ Módulo No Disponible", f"El módulo de Reportes no está disponible.\n\nError: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
     
     def mostrar_ayuda(self):
         """Mostrar información de ayuda del sistema"""
@@ -384,6 +450,3 @@ def main():
 if __name__ == "__main__":
     # Opción 1: Con login
     iniciar_sistema()
-    
-    # Opción 2: Directo al menú (descomenta la línea siguiente y comenta la anterior)
-    # main()

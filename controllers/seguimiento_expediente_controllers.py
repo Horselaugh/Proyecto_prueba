@@ -7,7 +7,7 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from models.seguimiento_model import SeguimientoModel
+from ..models.seguimiento_expedientes_models import SeguimientoModel
 
 modelo_seguimiento = SeguimientoModel()
 

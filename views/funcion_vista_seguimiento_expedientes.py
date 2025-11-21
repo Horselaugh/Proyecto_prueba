@@ -7,7 +7,7 @@ from datetime import date
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from controllers.seguimiento_controller import registrar_seguimiento, listar_seguimientos
+    from ..controllers.seguimiento_expediente_controllers import registrar_seguimiento, listar_seguimientos
 except Exception as e:
     registrar_seguimiento = None
     listar_seguimientos = None
@@ -17,7 +17,7 @@ else:
 
 def _intentar_cargar_expedientes():
     try:
-        import controllers.expediente_controller as exp_ctrl
+        import controllers.seguimiento_expediente_controllers as exp_ctrl
         for fn in ("listar_todas", "listar_todos", "listar", "leer"):
             if hasattr(exp_ctrl, fn):
                 try:
