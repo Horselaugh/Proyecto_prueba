@@ -1,49 +1,63 @@
+# main.py
+
 import sys
 import os
+from tkinter import messagebox
 
-def setup_path():
-    """
-    Asegura que el directorio del proyecto y el directorio padre estén en sys.path 
-    para importaciones absolutas resilientes, como 'views.funcion_login'.
-    """
-    # 1. Directorio que contiene este script (directorio actual)
+# ----------------------------------------------------------------------
+# Configuración del Path y Comprobación de Importaciones
+# ----------------------------------------------------------------------
+
+# Asegura que el directorio actual esté en el PATH para importaciones locales
+try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if current_dir not in sys.path:
         sys.path.append(current_dir)
-        
-    # 2. Directorio padre (probablemente la raíz real del proyecto)
-    # Al incluir el padre, se permite la importación de paquetes hermanos (ej. views/)
-    project_root = os.path.dirname(current_dir)
-    if project_root not in sys.path:
-        sys.path.append(project_root)
+except NameError:
+    pass
 
-# Llamar a la configuración del path al inicio
-setup_path()
-
-# Importar la clase LoginApp que contiene la lógica completa y la función run().
+# Importar los componentes necesarios
 try:
-    # Si 'views' y 'funcion_login' están configurados correctamente, la importación funciona.
-    from views.funcion_login import LoginApp
+    # Módulos de Login
+    from views.funcion_vista_login import LoginView 
+    from controllers.login_controllers import LoginController 
+    
+    # Módulo del Menú Principal
+    from views.menu import main as start_menu_app # Importamos la función 'main' de menu.py
+
 except ImportError as e:
-    # Este error ahora es más probable que se deba a que 'views/' o 'funcion_login.py' no existen
-    # en la estructura de carpetas esperada.
-    print(f"❌ Error de importación: No se pudo encontrar views.funcion_login.LoginApp.")
-    print(f"Asegúrese de que el archivo 'funcion_login.py' esté en la carpeta 'views/' y no tenga errores de sintaxis.")
-    print(f"Detalle del error: {e}")
+    error_msg = f"Error al importar un módulo requerido. Verifique que 'login_controllers.py', 'funcion_vista_login.py' y 'menu.py' existan en la misma carpeta.\nError: {e}"
+    messagebox.showerror("❌ Error Crítico de Importación", error_msg)
     sys.exit(1)
 
 
-def main():
-    """Función principal para inicializar y ejecutar la aplicación de Login."""
+# ----------------------------------------------------------------------
+# Función de Orquestación
+# ----------------------------------------------------------------------
+
+def start_login_process():
+    """Inicializa y ejecuta el proceso de Login."""
     
-    try:
-        app_runner = LoginApp()
-        print("Iniciando aplicación de Login...")
-        app_runner.run() # Llama a self.app.mainloop() o el método de ejecución de la app
-    except Exception as e:
-        # Esto capturará errores que ocurran DENTRO del constructor o la función run().
-        print(f"❌ Ocurrió un error al iniciar la aplicación principal: {e}")
-        sys.exit(1)
+    # 1. Instanciar la Vista de Login
+    login_view = LoginView(controller=None) 
+    
+    # 2. Instanciar el Controlador, pasándole la vista y el callback de éxito
+    controller = LoginController(
+        login_view=login_view, 
+        success_callback=start_menu_app # El callback es la función main(role) de menu.py
+    )
+    
+    # 3. Asignar el controlador real a la vista
+    login_view.controller = controller
+    
+    # 4. Iniciar el bucle principal de la ventana de Login
+    # Cuando el login sea exitoso, el controlador llamará a start_menu_app(role)
+    login_view.mainloop() 
+
+
+# ----------------------------------------------------------------------
+# PUNTO DE ENTRADA PRINCIPAL
+# ----------------------------------------------------------------------
 
 if __name__ == "__main__":
-    main()
+    start_login_process()

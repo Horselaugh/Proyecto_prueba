@@ -1,26 +1,37 @@
 import customtkinter as ctk
 import sys
 import os
-from tkinter import messagebox # Se agrega messagebox para manejo de errores
 
-# La clase debe llamarse ConfiguracionView para coincidir con el mapeo en menu.py
-class ConfiguracionView(ctk.CTkFrame):
+
+# ----------------------------------------------------------------------
+# MOCK DE MODELO (TEMPORAL)
+# ----------------------------------------------------------------------
+
+# 🔴 MOCK TEMPORAL: Necesario para que el Controlador pueda inicializar su propiedad 'modelo'
+class MockConfiguracionModelo:
+    def get_all_roles(self): return [{"id": 1, "nombre": "Admin", "descripcion": "Administrador"}]
+    def get_all_usuarios(self): return []
+    def handle_crear_rol(self, *args): return True
+    def handle_guardar_rol(self, *args): return True
+    def handle_eliminar_rol(self, *args): return True
+    def handle_crear_usuario(self, *args): return True
+    def handle_guardar_usuario(self, *args): return True
+    def handle_eliminar_usuario(self, *args): return True
+
+
+class ConfiguracionViewFrame(ctk.CTkFrame):
     """
     Vista para el módulo de configuración. 
     Hereda de CTkFrame para ser cargado en el panel de contenido.
     """
     
-    # Recibe 'master' (el CTkFrame de contenido de MenuApp) y 'controller' (la instancia de MenuApp)
-    # Nota: El 'controller' pasado aquí es MenuApp, que a su vez tendrá acceso al ConfiguracionControlador.
+    # Recibe 'master' (el CTkFrame de contenido de MenuApp) y 'controller' (ConfiguracionControlador)
     def __init__(self, master, controller):
         super().__init__(master, corner_radius=0, fg_color="transparent") 
         
-        # Asumimos que el 'controller' (MenuApp) tiene un método para acceder al controlador de este módulo.
-        # Esto es un placeholder hasta que se implemente la capa de controlador/modelo real.
-        self.main_controller = controller
-        # PLACEHOLDER: En un diseño MVC real, se instanciaría el controlador aquí o se pasaría.
-        # Por ahora, asumimos que 'controller' gestiona el acceso a la lógica de negocio.
-        self.controller = None 
+        self.controller = controller 
+        # 🔴 CORRECCIÓN: La Vista se registra en el Controlador para que este pueda actualizarla
+        self.controller.set_view(self) 
         
         self.rol_seleccionado = None
         self.usuario_seleccionado = None
@@ -58,26 +69,10 @@ class ConfiguracionView(ctk.CTkFrame):
         
     def show(self):
         """MÉTODO CLAVE: Llamado por MenuApp, invoca la carga de datos del controlador."""
-        # Se establece el controlador real del módulo o se usa el principal
-        if not self.controller:
-            try:
-                # Intenta obtener o crear el controlador real (ConfiguracionControlador)
-                # Esto asume que MenuApp tiene un mecanismo para proveer el controlador
-                self.controller = self.main_controller._get_module_controller("configuracion") 
-            except AttributeError:
-                # Si MenuApp no tiene _get_module_controller, usa una implementación mock
-                self.display_message("⚠️ Advertencia: Falta el ConfiguracionControlador real.", is_success=False)
-                return 
-
-        # Si el controlador fue inicializado (real o mock), intenta cargar datos
-        if self.controller and hasattr(self.controller, 'load_initial_data'):
-            self.controller.load_initial_data() 
-        else:
-            self.display_message("⚠️ Advertencia: El controlador no tiene el método 'load_initial_data'.", is_success=False)
+        self.controller.load_initial_data() 
         
-        
-    # El resto de métodos de la vista (como _configurar_tab_roles, set_roles_list, _handle_crear_rol, etc.)
-    # Se mantienen igual, pero con la delegación al controlador asegurando que exista.
+    # El resto de métodos de la vista son correctos y se omiten para brevedad.
+    # ... (Se omiten los métodos _configurar_tab_roles, _configurar_tab_usuarios, _handle_crear_rol, etc.)
 
     def _configurar_tab_roles(self):
         tab = self.tabview.tab("Roles")
@@ -241,13 +236,11 @@ class ConfiguracionView(ctk.CTkFrame):
 
     # --- MÉTODOS DE ACCIÓN (Delegación pura al Controlador) ---
     def _handle_crear_rol(self):
-        if not self.controller: return
         nombre = self.rol_nombre_entry.get().strip()
         descripcion = self.rol_descripcion_entry.get().strip()
         self.controller.handle_crear_rol(nombre, descripcion)
     
     def _handle_guardar_rol(self):
-        if not self.controller: return
         if not self.rol_seleccionado:
             self.display_message("Error: Debe seleccionar un rol para guardar cambios.", is_success=False)
             return
@@ -257,7 +250,6 @@ class ConfiguracionView(ctk.CTkFrame):
         self.controller.handle_guardar_rol(rol_id, nuevo_nombre, nueva_descripcion)
     
     def _handle_eliminar_rol(self):
-        if not self.controller: return
         if not self.rol_seleccionado:
             self.display_message("Error: Debe seleccionar un rol para eliminar.", is_success=False)
             return
@@ -280,12 +272,10 @@ class ConfiguracionView(ctk.CTkFrame):
         }
     
     def _handle_crear_usuario(self):
-        if not self.controller: return
         datos_usuario = self._get_usuario_data()
         self.controller.handle_crear_usuario(datos_usuario)
     
     def _handle_guardar_usuario(self):
-        if not self.controller: return
         if not self.usuario_seleccionado:
             self.display_message("Error: Debe seleccionar un usuario para guardar cambios.", is_success=False)
             return
@@ -293,7 +283,6 @@ class ConfiguracionView(ctk.CTkFrame):
         self.controller.handle_guardar_usuario(datos_usuario)
 
     def _handle_eliminar_usuario(self):
-        if not self.controller: return
         if not self.usuario_seleccionado:
             self.display_message("Error: Debe seleccionar un usuario para eliminar.", is_success=False)
             return
@@ -394,3 +383,105 @@ class ConfiguracionView(ctk.CTkFrame):
         self.btn_guardar_usuario.configure(state="disabled")
         self.btn_eliminar_usuario.configure(state="disabled")
         self.usuario_seleccionado = None
+
+# ----------------------------------------------------------------------
+# CLASE DE CONTROLADOR
+# ----------------------------------------------------------------------
+
+class ConfiguracionControlador:
+    """
+    Controlador que maneja la interacción entre el Modelo y la Vista.
+    Instanciado por MenuApp, y responsable de crear la vista.
+    """
+    
+    # 🔴 CORRECCIÓN: Agregar __init__ para instanciar el Modelo (Mock/Real) y gestionar la Vista
+    def __init__(self):
+        # Aquí debería ir la importación e instanciación del Modelo real.
+        self.modelo = MockConfiguracionModelo() 
+        self.vista = None
+
+    def set_view(self, view_instance):
+        """Asigna la instancia de la vista al controlador."""
+        self.vista = view_instance
+        
+    def get_view(self):
+        """Método requerido por MenuApp para obtener el frame de la vista."""
+        return self.vista
+
+    def load_initial_data(self):
+        """
+        MÉTODO CLAVE: Contiene la lógica para cargar datos iniciales.
+        Llamado por MenuApp a través de vista.show().
+        """
+        if not self.vista:
+            print("ERROR CRÍTICO: El controlador de configuración se llamó sin una vista asignada.")
+            return
+
+        self.vista.display_message("Cargando datos de configuración...", is_success=True)
+        try:
+            roles = self.modelo.get_all_roles()
+            usuarios = self.modelo.get_all_usuarios()
+            
+            self.vista.set_roles_list(roles)
+            self.vista.set_usuarios_list(usuarios)
+            self.vista.display_message("Datos de configuración cargados correctamente. ✅", is_success=True)
+            
+        except Exception as e:
+             self.vista.display_message(f"❌ Error al cargar datos: {e}", is_success=False)
+
+    # --- MÉTODOS DE NEGOCIO (Handlers para la Vista) ---
+    
+    def handle_crear_rol(self, nombre, descripcion):
+        if self.modelo.handle_crear_rol(nombre, descripcion):
+            self.vista.display_message(f"✅ Rol '{nombre}' creado.", is_success=True)
+            self.load_initial_data() 
+        else:
+            self.vista.display_message(f"❌ Error al crear el rol: {nombre}.", is_success=False)
+            
+    def handle_guardar_rol(self, rol_id, nuevo_nombre, nueva_descripcion):
+        if self.modelo.handle_guardar_rol(rol_id, nuevo_nombre, nueva_descripcion):
+            self.vista.display_message(f"✅ Rol '{nuevo_nombre}' modificado.", is_success=True)
+            self.load_initial_data() 
+        else:
+            self.vista.display_message(f"❌ Error al modificar el rol: {nuevo_nombre}.", is_success=False)
+
+    def handle_eliminar_rol(self, rol_id, nombre):
+        if self.modelo.handle_eliminar_rol(rol_id):
+            self.vista.display_message(f"🗑️ Rol '{nombre}' eliminado.", is_success=True)
+            self.vista._limpiar_campos_rol(clear_selection=True)
+            self.load_initial_data() 
+        else:
+            self.vista.display_message(f"❌ Error al eliminar el rol: {nombre}.", is_success=False)
+
+    def _validar_usuario_data(self, data):
+        # Implementación de validación básica
+        if not all([data['primer_nombre'], data['documento_identidad']]):
+            self.vista.display_message("❌ Error: Nombre y documento son obligatorios.", is_success=False)
+            return False
+        return True
+
+    def handle_crear_usuario(self, data):
+        if not self._validar_usuario_data(data): return
+        if self.modelo.handle_crear_usuario(data):
+            self.vista.display_message(f"✅ Usuario {data['primer_nombre']} creado.", is_success=True)
+            self.vista._limpiar_campos_usuario(clear_selection=True)
+            self.load_initial_data()
+        else:
+            self.vista.display_message(f"❌ Error al crear usuario.", is_success=False)
+
+    def handle_guardar_usuario(self, data):
+        if not self._validar_usuario_data(data): return
+        if self.modelo.handle_guardar_usuario(data):
+            self.vista.display_message(f"✅ Usuario {data['primer_nombre']} guardado.", is_success=True)
+            self.vista._limpiar_campos_usuario(clear_selection=True)
+            self.load_initial_data()
+        else:
+            self.vista.display_message(f"❌ Error al guardar usuario.", is_success=False)
+
+    def handle_eliminar_usuario(self, persona_id, nombre_usuario):
+        if self.modelo.handle_eliminar_usuario(persona_id):
+            self.vista.display_message(f"🗑️ Usuario {nombre_usuario} eliminado.", is_success=True)
+            self.vista._limpiar_campos_usuario(clear_selection=True)
+            self.load_initial_data()
+        else:
+            self.vista.display_message(f"❌ Error al eliminar usuario.", is_success=False)

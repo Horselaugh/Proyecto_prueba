@@ -27,11 +27,8 @@ ctk.set_default_color_theme("blue")
 
 
 # ----------------------------------------------------------------------
-# MAPPING DE VISTAS
+# MAPPING DE VISTAS (CORREGIDO)
 # ----------------------------------------------------------------------
-
-# Usamos el formato de diccionario para TODAS las vistas que usan una clase
-# de vista específica (no 'ViewFrame') o para ser explícitos.
 
 MODULE_PATHS = {
     "gestion_nna": {"module": "funcion_vista_nna", "class": "ViewFrame"},
@@ -39,18 +36,19 @@ MODULE_PATHS = {
     "gestion_ue": {"module": "funcion_vista_ue", "class": "ViewFrame"},
     "gestion_matriculas": {"module": "funcion_vista_matricula", "class": "ViewFrame"},
     
-    # Artículos (Asumimos ArticuloVista o ViewFrame)
+    # Artículos 
     "gestion_articulos": {
         "module": "funcion_vista_art",
-        "class": "ArticuloVista" # <- Se usará ArticuloVista o ViewFrame si se cambia
+        "class": "ArticuloVista" 
     },
     
     "gestion_personal": {"module": "funcion_vista_personal", "class": "ViewFrame"},
     
-    # Configuración (Corregido para usar el nombre de clase correcto)
+    # Configuración (CORREGIDO: Apunta al Controlador y Vista correctos)
     "configuracion": {
         "module": "configuracion_view",
-        "class": "ConfiguracionView" # <- Basado en tu archivo configuracion_view.py
+        "view_class": "ConfiguracionViewFrame", # 🔴 CORRECCIÓN 1: Nombre correcto de la clase de la Vista
+        "controller": "ConfiguracionControlador" # 🔴 CLAVE: Clase del Controlador
     },
     
     "reportes": {"module": "reportes_view", "class": "ViewFrame"}, 
@@ -61,13 +59,14 @@ MODULE_PATHS = {
 # VISTA INICIAL (MenuInicioFrame)
 # ----------------------------------------------------------------------
 
+# ... (Clases BaseViewFrame y MenuInicioFrame son correctas)
+
 class BaseViewFrame(ctk.CTkFrame):
     """Clase base para módulos de vista que asegura la configuración de grid."""
     def __init__(self, master, controller, **kwargs):
         super().__init__(master, **kwargs)
         self.controller = controller 
-        # CORRECCIÓN: Eliminado pack_propagate(False) ya que la app usa grid, 
-        # y esta configuración puede interferir con el uso de grid.
+        self.pack_propagate(False) 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
@@ -109,9 +108,11 @@ class MenuInicioFrame(BaseViewFrame):
 # ----------------------------------------------------------------------
 
 class MenuApp(ctk.CTk):
-    def __init__(self):
+    def __init__(self, role=None):
         super().__init__()
-        self.title("🏛️ Sistema de Gestión LOPNNA - Consejo de Protección Carrizal")
+        self.role = role # Almacenar el rol
+        # Usar el rol en el título
+        self.title(f"🏛️ Sistema de Gestión LOPNNA - Consejo de Protección Carrizal ({role if role else 'Invitado'})") 
         self.geometry("1400x900")
         self.minsize(1200, 800)
         self.center_window()
@@ -123,7 +124,7 @@ class MenuApp(ctk.CTk):
         self.show_view("menu_inicio") 
         
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-
+        
     def setup_main_layout(self):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=0) 
@@ -169,7 +170,6 @@ class MenuApp(ctk.CTk):
             button = ctk.CTkButton(
                 self.sidebar_frame,
                 text=f"{module['emoji']} {module['text']}",
-                # 🔴 CORRECCIÓN: self.show_view ahora maneja la carga y el caché.
                 command=lambda cmd=module['command']: self.show_view(cmd),
                 height=40,
                 corner_radius=8,
@@ -202,47 +202,64 @@ class MenuApp(ctk.CTk):
 
 
     def _get_module_info(self, module_name):
-        """Helper para extraer la ruta del módulo y el nombre de la clase."""
+        """Helper para extraer la ruta del módulo, la clase de la vista y, opcionalmente, la clase del controlador."""
         path_info = MODULE_PATHS.get(module_name)
         
         if not path_info:
-            # Maneja módulos simples que quizás no tienen un mapeo de diccionario
-            return module_name, "ViewFrame"
+            # path, view_class, controller_class
+            return module_name, "ViewFrame", None 
         
-        if isinstance(path_info, str):
-            # Asume ViewFrame si es solo una cadena (para compatibilidad)
-            return path_info, "ViewFrame"
-        elif isinstance(path_info, dict):
-            module_path = path_info.get('module')
-            class_name = path_info.get('class')
-            if not module_path or not class_name:
-                 raise ValueError(f"Falta 'module' o 'class' en la configuración de {module_name}")
-            return module_path, class_name
+        module_path = path_info.get('module')
+        view_class_name = path_info.get('view_class') or path_info.get('class')
+        controller_class_name = path_info.get('controller')
         
-        raise ValueError(f"Formato de path no soportado para {module_name}")
+        if not module_path or not view_class_name:
+             raise ValueError(f"Falta 'module' o 'view_class'/'class' en la configuración de {module_name}")
+             
+        return module_path, view_class_name, controller_class_name
 
 
     def show_view(self, module_name):
-        """Carga y muestra la vista, o la obtiene del caché si ya está instanciada."""
+        """Carga y muestra la vista, manejando controladores para módulos MVC completos."""
+        
+        # 1. Manejar Inicio
+        if module_name == "menu_inicio":
+            if module_name not in self._frames:
+                frame = MenuInicioFrame(self.main_content_frame, self)
+                self._frames[module_name] = frame
+        
+        # Ocultar todos los frames
+        for frame_item in self._frames.values():
+            frame_item.grid_forget()
         
         if module_name not in self._frames:
             # Intento de carga de la vista (Instanciación)
-            frame = None
-            
             try:
-                if module_name == "menu_inicio":
-                    frame = MenuInicioFrame(self.main_content_frame, self)
+                module_path, view_class_name, controller_class_name = self._get_module_info(module_name)
+                
+                module = importlib.import_module(module_path) 
+                
+                if controller_class_name:
+                    # 🔴 MÓDULO MVC COMPLETO (E.g., Configuración)
+                    ControllerClass = getattr(module, controller_class_name)
+                    ViewClass = getattr(module, view_class_name)
+
+                    # Instanciar el Controlador (solo una vez)
+                    if module_name not in self._controllers:
+                         # ⚠️ Asumo que el constructor del Controlador no requiere argumentos
+                         # (o que se inicializa con mocks en su archivo).
+                        controller_instance = ControllerClass()
+                        self._controllers[module_name] = controller_instance 
+                    
+                    controller_instance = self._controllers[module_name]
+                    
+                    # Instanciar la Vista, pasándole el Frame Principal y el Controlador Real
+                    frame = ViewClass(self.main_content_frame, controller_instance)
+                    
                 else:
-                    module_path, class_name = self._get_module_info(module_name)
-                    
-                    # Importación dinámica
-                    # Nota: Importamos desde el directorio views/ (que está en sys.path)
-                    module = importlib.import_module(module_path) 
-                    ViewClass = getattr(module, class_name)
-                    
-                    # 🔴 CLAVE DE LA CORRECCIÓN: Pasar 'self' (la instancia de MenuApp) 
-                    # como 'controller' a la vista real.
-                    frame = ViewClass(self.main_content_frame, self) 
+                    # 🟢 MÓDULO SIMPLE (MenuApp actúa como Controlador)
+                    ViewClass = getattr(module, view_class_name)
+                    frame = ViewClass(self.main_content_frame, self) # MenuApp es el controlador
                     
                 
                 # Almacenar la vista instanciada en el caché
@@ -250,24 +267,21 @@ class MenuApp(ctk.CTk):
                 frame.grid(row=0, column=0, sticky="nsew")
 
             except ImportError as e:
-                msg = f"No se pudo importar el módulo real: {module_name} ({module_path}).\nVerifique que el archivo exista y no tenga errores.\nError: {e}"
-                messagebox.showerror("❌ Error de Importación", msg)
+                msg_error = f"No se pudo importar el módulo real: {module_name} ({module_path}).\nVerifique que el archivo exista y no tenga errores.\nError: {e}"
+                messagebox.showerror("❌ Error de Importación", msg_error)
                 print(f"Error de Importación del módulo {module_name}: {e}")
-                return # Salir si la carga falla
+                return 
             except Exception as e:
-                msg = f"Error al instanciar la clase {class_name} del módulo {module_name}.\nVerifique el constructor de la vista.\nError: {e}"
-                messagebox.showerror("❌ Error de Carga de Vista", msg)
+                msg_error = f"Error al instanciar la clase {view_class_name} del módulo {module_name}.\nVerifique el constructor de la vista.\nError: {e}"
+                messagebox.showerror("❌ Error de Carga de Vista", msg_error)
                 print(f"Error al instanciar la vista {module_name}: {e}")
-                return # Salir si la carga falla
+                return 
         
-        # Ocultar todos los frames y mostrar solo el frame deseado
-        for frame_item in self._frames.values():
-            frame_item.grid_forget()
-            
+        # Mostrar solo el frame deseado
         current_frame = self._frames[module_name]
         current_frame.grid(row=0, column=0, sticky="nsew")
         
-        # Llamar al método show. En los módulos MVC, esto disparará la carga de datos.
+        # Llamar al método show.
         current_frame.show() 
         
         print(f"Vista cargada en panel lateral: {module_name}")
@@ -301,10 +315,11 @@ Este sistema permite la administración integral de:
 # PUNTO DE ENTRADA
 # ----------------------------------------------------------------------
 
-def main():
+def main(role=None): 
     try:
         print("Iniciando aplicación en modo panel lateral...")
-        app = MenuApp()
+        # 🟢 CORRECCIÓN 3: Pasar el rol a la clase MenuApp
+        app = MenuApp(role=role) 
         app.mainloop()
         print("El sistema ha sido cerrado correctamente.")
         
