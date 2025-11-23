@@ -1,215 +1,278 @@
-# menu.py
 import customtkinter as ctk
 from tkinter import messagebox
 import sys
 import os
+import importlib
+
+# ----------------------------------------------------------------------
+# Configuración de Paths y Apariencia
+# ----------------------------------------------------------------------
 
 # Configurar el path para importaciones
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(current_dir)) # Subir dos niveles para Proyecto_prueba
+    if project_root not in sys.path:
+        sys.path.append(project_root)
+    
+    views_dir = current_dir
+    if os.path.exists(views_dir) and views_dir not in sys.path:
+        sys.path.append(views_dir)
+        
+except NameError:
+    pass
 
-# Configuración de apariencia
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
+
+# ----------------------------------------------------------------------
+# MAPPING DE VISTAS
+# ----------------------------------------------------------------------
+
+# Usamos el formato de diccionario para TODAS las vistas que usan una clase
+# de vista específica (no 'ViewFrame') o para ser explícitos.
+
+MODULE_PATHS = {
+    "gestion_nna": {"module": "funcion_vista_nna", "class": "ViewFrame"},
+    "gestion_familiares": {"module": "funcion_vista_fami", "class": "ViewFrame"},
+    "gestion_ue": {"module": "funcion_vista_ue", "class": "ViewFrame"},
+    "gestion_matriculas": {"module": "funcion_vista_matricula", "class": "ViewFrame"},
+    
+    # Artículos (Asumimos ArticuloVista o ViewFrame)
+    "gestion_articulos": {
+        "module": "funcion_vista_art",
+        "class": "ArticuloVista" # <- Se usará ArticuloVista o ViewFrame si se cambia
+    },
+    
+    "gestion_personal": {"module": "funcion_vista_personal", "class": "ViewFrame"},
+    
+    # Configuración (Corregido para usar el nombre de clase correcto)
+    "configuracion": {
+        "module": "configuracion_view",
+        "class": "ConfiguracionView" # <- Basado en tu archivo configuracion_view.py
+    },
+    
+    "reportes": {"module": "reportes_view", "class": "ViewFrame"}, 
+    "seguimiento_expedientes": {"module": "seguimiento_view", "class": "ViewFrame"}, 
+}
+
+# ----------------------------------------------------------------------
+# VISTA INICIAL (MenuInicioFrame)
+# ----------------------------------------------------------------------
+
+class BaseViewFrame(ctk.CTkFrame):
+    """Clase base para módulos de vista que asegura la configuración de grid."""
+    def __init__(self, master, controller, **kwargs):
+        super().__init__(master, **kwargs)
+        self.controller = controller 
+        # CORRECCIÓN: Eliminado pack_propagate(False) ya que la app usa grid, 
+        # y esta configuración puede interferir con el uso de grid.
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+    def show(self):
+        """Método para cargar datos o actualizar la vista."""
+        pass
+
+class MenuInicioFrame(BaseViewFrame):
+    """Vista de inicio simple."""
+    def __init__(self, master, controller):
+        super().__init__(master, controller)
+        self.configure(fg_color="transparent")
+        
+        # Contenedor central
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.place(relx=0.5, rely=0.5, anchor="center")
+        
+        ctk.CTkLabel(container, 
+                     text="Bienvenido al Sistema de Gestión LOPNNA", 
+                     font=("Arial", 36, "bold"), 
+                     text_color="#f1c40f").pack(pady=10)
+        
+        ctk.CTkLabel(container, 
+                     text="Seleccione un módulo del panel lateral para comenzar.", 
+                     font=("Arial", 18)).pack(pady=10)
+        
+        ctk.CTkButton(container, 
+                      text="Iniciar Gestión de NNA",
+                      command=lambda: self.controller.show_view("gestion_nna"),
+                      fg_color="#3498db",
+                      hover_color="#2980b9",
+                      height=50,
+                      font=("Arial", 16, "bold"),
+                      corner_radius=10).pack(pady=20, padx=50)
+
+
+# ----------------------------------------------------------------------
+# CLASE PRINCIPAL: MenuApp
+# ----------------------------------------------------------------------
 
 class MenuApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("🏛️ Sistema de Gestión LOPNNA - Consejo de Protección Carrizal")
-        
-        # Configurar para pantalla grande
-        self.attributes('-fullscreen', False)
         self.geometry("1400x900")
         self.minsize(1200, 800)
-        
-        # Centrar ventana
         self.center_window()
         
-        # Configurar layout principal
-        self.setup_main_layout()
+        self._frames = {} 
+        self._controllers = {}
         
-        # Manejar cierre de ventana
+        self.setup_main_layout()
+        self.show_view("menu_inicio") 
+        
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
     def setup_main_layout(self):
-        """Configurar el layout principal del menú"""
-        # Frame principal
-        main_container = ctk.CTkFrame(self, fg_color="transparent")
-        main_container.pack(fill="both", expand=True, padx=20, pady=20)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=0) 
+        self.grid_columnconfigure(1, weight=1) 
 
-        # Header con información
-        header_frame = ctk.CTkFrame(main_container, height=100)
-        header_frame.pack(fill="x", pady=(0, 20))
-        header_frame.pack_propagate(False)
-
-        # Contenido del header
-        title_label = ctk.CTkLabel(
-            header_frame,
-            text="🏛️ SISTEMA DE GESTIÓN LOPNNA",
-            font=("Arial", 28, "bold"),
-            text_color="#2e86ab"
-        )
-        title_label.pack(pady=10)
-
-        subtitle_label = ctk.CTkLabel(
-            header_frame,
-            text="Consejo de Protección de Niños, Niñas y Adolescentes - Municipio Carrizal",
-            font=("Arial", 16),
-            text_color="#7f8c8d"
-        )
-        subtitle_label.pack()
+        self.sidebar_frame = ctk.CTkFrame(self, 
+                                          width=280, 
+                                          corner_radius=0, 
+                                          fg_color="#2c3e50")
+        self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
+        self.sidebar_frame.grid_rowconfigure(10, weight=1)
         
-        # Definir módulos con emojis y colores
+        ctk.CTkLabel(self.sidebar_frame, 
+                     text="🏛️ SISTEMA LOPNNA", 
+                     font=("Arial", 18, "bold"), 
+                     text_color="#f1c40f").grid(row=0, column=0, padx=20, pady=(20, 10))
+        
+        ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="#34495e").grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 15))
+
+        self.main_content_frame = ctk.CTkFrame(self, corner_radius=0)
+        self.main_content_frame.grid(row=0, column=1, sticky="nsew")
+        self.main_content_frame.grid_rowconfigure(0, weight=1)
+        self.main_content_frame.grid_columnconfigure(0, weight=1)
+        
+        self.create_sidebar_buttons()
+
+
+    def create_sidebar_buttons(self):
         modules = [
-            # ... (Módulos existentes: Gestión de NNA, Gestión de Familiares, Unidades Educativas, Gestión de Matrículas, Gestión de Artículos, Gestión de Personal)
-            {
-                "emoji": "👦", "text": "Gestión de NNA", 
-                "command": self.gestion_nna, "color": "#3498db",
-                "description": "Administrar información de\nNiños, Niñas y Adolescentes"
-            },
-            {
-                "emoji": "👨‍👩‍👧‍👦", "text": "Gestión de Familiares", 
-                "command": self.gestion_familiares, "color": "#9b59b6",
-                "description": "Gestionar datos de\nfamiliares y tutores"
-            },
-            {
-                "emoji": "🏫", "text": "Unidades Educativas", 
-                "command": self.gestion_ue, "color": "#e74c3c",
-                "description": "Administrar Unidades\nEducativas"
-            },
-            {
-                "emoji": "📚", "text": "Gestión de Matrículas", 
-                "command": self.gestion_matriculas, "color": "#f39c12",
-                "description": "Controlar matrículas\neducativas"
-            },
-            {
-                "emoji": "📦", "text": "Gestión de Artículos", 
-                "command": self.gestion_articulos, "color": "#1abc9c",
-                "description": "Administrar artículos\ndel sistema"
-            },
-            {
-                "emoji": "👥", "text": "Gestión de Personal", 
-                "command": self.gestion_personal, "color": "#34495e",
-                "description": "Gestionar usuarios\ndel sistema"
-            },
-            # --- NUEVOS MÓDULOS ---
-            {
-                "emoji": "📌", "text": "Seguimiento Expedientes", 
-                "command": self.seguimiento_expedientes, "color": "#2ecc71", # Verde Esmeralda
-                "description": "Registrar y consultar\nel seguimiento de expedientes"
-            },
-            {
-                "emoji": "⚙️", "text": "Configuración del Sistema", 
-                "command": self.configuracion, "color": "#f1c40f", # Amarillo Girasol
-                "description": "Administración de Roles\ny Usuarios"
-            },
-            {
-                "emoji": "📊", "text": "Reportes y Estadísticas", 
-                "command": self.reportes, "color": "#e67e22", # Naranja Zanahoria
-                "description": "Visualizar reportes\ny datos estadísticos"
-            },
-            # ------------------------
+            {"text": "Menú Inicio", "command": "menu_inicio", "emoji": "🏠"},
+            {"text": "Gestión de NNA", "command": "gestion_nna", "emoji": "👦"},
+            {"text": "Gestión de Familiares", "command": "gestion_familiares", "emoji": "👨‍👩‍👧‍👦"},
+            {"text": "Unidades Educativas", "command": "gestion_ue", "emoji": "🏫"},
+            {"text": "Gestión de Matrículas", "command": "gestion_matriculas", "emoji": "📚"},
+            {"text": "Gestión de Artículos", "command": "gestion_articulos", "emoji": "📦"},
+            {"text": "Gestión de Personal", "command": "gestion_personal", "emoji": "👥"},
+            {"text": "Seguimiento Expedientes", "command": "seguimiento_expedientes", "emoji": "📌"},
+            {"text": "Reportes y Estadísticas", "command": "reportes", "emoji": "📊"},
+            {"text": "Configuración del Sistema", "command": "configuracion", "emoji": "⚙️"},
         ]
         
-        # Frame para los módulos
-        modules_frame = ctk.CTkFrame(main_container)
-        modules_frame.pack(fill="both", expand=True)
-
-        # Título de módulos
-        modules_title = ctk.CTkLabel(
-            modules_frame,
-            text="📋 MÓDULOS DEL SISTEMA",
-            font=("Arial", 20, "bold"),
-            text_color="#2e86ab"
-        )
-        modules_title.pack(pady=20)
-
-        # Grid para los botones de módulos
-        buttons_grid = ctk.CTkFrame(modules_frame, fg_color="transparent")
-        buttons_grid.pack(fill="both", expand=True, padx=50, pady=20)
-
-        # Configurar grid layout
-        buttons_grid.columnconfigure(0, weight=1)
-        buttons_grid.columnconfigure(1, weight=1)
-        buttons_grid.columnconfigure(2, weight=1)
-        buttons_grid.rowconfigure(0, weight=1)
-        buttons_grid.rowconfigure(1, weight=1)
-        buttons_grid.rowconfigure(2, weight=1)
-        
-        # Crear botones en grid
         for i, module in enumerate(modules):
-            row = i // 3
-            col = i % 3
-            
-            self.create_module_button(
-                buttons_grid, module, row, col
+            button = ctk.CTkButton(
+                self.sidebar_frame,
+                text=f"{module['emoji']} {module['text']}",
+                # 🔴 CORRECCIÓN: self.show_view ahora maneja la carga y el caché.
+                command=lambda cmd=module['command']: self.show_view(cmd),
+                height=40,
+                corner_radius=8,
+                fg_color="transparent",
+                hover_color="#34495e",
+                font=("Arial", 14, "bold"),
+                anchor="w"
             )
+            button.grid(row=i + 2, column=0, padx=15, pady=5, sticky="ew")
 
-        # Frame para botones de control
-        control_frame = ctk.CTkFrame(main_container, height=80)
-        control_frame.pack(fill="x", pady=(20, 0))
-        control_frame.pack_propagate(False)
-
-        # Botones de control
-        control_buttons_frame = ctk.CTkFrame(control_frame, fg_color="transparent")
-        control_buttons_frame.pack(expand=True)
-
-        # Botón de ayuda
-        help_button = ctk.CTkButton(
-            control_buttons_frame,
-            text="❓ Ayuda del Sistema",
+        ctk.CTkButton(
+            self.sidebar_frame,
+            text="❓ Ayuda",
             command=self.mostrar_ayuda,
-            height=40,
-            font=("Arial", 14),
+            height=30,
             fg_color="#f39c12",
-            hover_color="#e67e22"
-        )
-        help_button.pack(side="left", padx=10)
-
-        # Botón de cerrar sesión
-        logout_button = ctk.CTkButton(
-            control_buttons_frame,
-            text="🚪 Salir del Sistema",
-            command=self.on_closing,
-            height=40,
-            font=("Arial", 14, "bold"),
-            fg_color="#e74c3c",
-            hover_color="#c0392b"
-        )
-        logout_button.pack(side="right", padx=10)
-
-    def create_module_button(self, parent, module, row, col):
-        """Crear un botón de módulo con diseño mejorado"""
-        button_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        button_frame.grid(row=row, column=col, padx=15, pady=15, sticky="nsew")
+            hover_color="#e67e22",
+            font=("Arial", 12)
+        ).grid(row=11, column=0, padx=20, pady=(20, 5), sticky="s")
         
-        button = ctk.CTkButton(
-            button_frame,
-            text=f"{module['emoji']}\n{module['text']}\n\n{module['description']}",
-            command=module['command'],
-            height=150,
-            font=("Arial", 16, "bold"),
-            fg_color=module['color'],
-            hover_color=self.darken_color(module['color']),
-            text_color="white",
-            corner_radius=15
-        )
-        button.pack(fill="both", expand=True)
+        ctk.CTkButton(
+            self.sidebar_frame,
+            text="🚪 Salir",
+            command=self.on_closing,
+            height=30,
+            fg_color="#e74c3c",
+            hover_color="#c0392b",
+            font=("Arial", 12, "bold")
+        ).grid(row=12, column=0, padx=20, pady=(5, 20), sticky="s")
 
-    def darken_color(self, color):
-        """Oscurecer un color para el efecto hover"""
-        # Implementación simple para oscurecer colores hex
-        if color.startswith('#'):
-            r = int(color[1:3], 16)
-            g = int(color[3:5], 16)
-            b = int(color[5:7], 16)
-            r = max(0, r - 30)
-            g = max(0, g - 30)
-            b = max(0, b - 30)
-            return f'#{r:02x}{g:02x}{b:02x}'
-        return color
+
+    def _get_module_info(self, module_name):
+        """Helper para extraer la ruta del módulo y el nombre de la clase."""
+        path_info = MODULE_PATHS.get(module_name)
+        
+        if not path_info:
+            # Maneja módulos simples que quizás no tienen un mapeo de diccionario
+            return module_name, "ViewFrame"
+        
+        if isinstance(path_info, str):
+            # Asume ViewFrame si es solo una cadena (para compatibilidad)
+            return path_info, "ViewFrame"
+        elif isinstance(path_info, dict):
+            module_path = path_info.get('module')
+            class_name = path_info.get('class')
+            if not module_path or not class_name:
+                 raise ValueError(f"Falta 'module' o 'class' en la configuración de {module_name}")
+            return module_path, class_name
+        
+        raise ValueError(f"Formato de path no soportado para {module_name}")
+
+
+    def show_view(self, module_name):
+        """Carga y muestra la vista, o la obtiene del caché si ya está instanciada."""
+        
+        if module_name not in self._frames:
+            # Intento de carga de la vista (Instanciación)
+            frame = None
+            
+            try:
+                if module_name == "menu_inicio":
+                    frame = MenuInicioFrame(self.main_content_frame, self)
+                else:
+                    module_path, class_name = self._get_module_info(module_name)
+                    
+                    # Importación dinámica
+                    # Nota: Importamos desde el directorio views/ (que está en sys.path)
+                    module = importlib.import_module(module_path) 
+                    ViewClass = getattr(module, class_name)
+                    
+                    # 🔴 CLAVE DE LA CORRECCIÓN: Pasar 'self' (la instancia de MenuApp) 
+                    # como 'controller' a la vista real.
+                    frame = ViewClass(self.main_content_frame, self) 
+                    
+                
+                # Almacenar la vista instanciada en el caché
+                self._frames[module_name] = frame
+                frame.grid(row=0, column=0, sticky="nsew")
+
+            except ImportError as e:
+                msg = f"No se pudo importar el módulo real: {module_name} ({module_path}).\nVerifique que el archivo exista y no tenga errores.\nError: {e}"
+                messagebox.showerror("❌ Error de Importación", msg)
+                print(f"Error de Importación del módulo {module_name}: {e}")
+                return # Salir si la carga falla
+            except Exception as e:
+                msg = f"Error al instanciar la clase {class_name} del módulo {module_name}.\nVerifique el constructor de la vista.\nError: {e}"
+                messagebox.showerror("❌ Error de Carga de Vista", msg)
+                print(f"Error al instanciar la vista {module_name}: {e}")
+                return # Salir si la carga falla
+        
+        # Ocultar todos los frames y mostrar solo el frame deseado
+        for frame_item in self._frames.values():
+            frame_item.grid_forget()
+            
+        current_frame = self._frames[module_name]
+        current_frame.grid(row=0, column=0, sticky="nsew")
+        
+        # Llamar al método show. En los módulos MVC, esto disparará la carga de datos.
+        current_frame.show() 
+        
+        print(f"Vista cargada en panel lateral: {module_name}")
 
     def center_window(self):
-        """Centrar la ventana en la pantalla"""
         self.update_idletasks()
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
@@ -217,236 +280,37 @@ class MenuApp(ctk.CTk):
         y = (screen_height - 900) // 2
         self.geometry(f'1400x900+{x}+{y}')
 
-    def gestion_nna(self):
-        """Abrir gestión de NNA"""
-        try:
-            # Importar dentro del método para evitar problemas de importación circular
-            import importlib
-            import sys
-            import os
-            
-            # Agregar el directorio de vistas al path
-            views_dir = os.path.join(os.path.dirname(__file__), 'views')
-            if views_dir not in sys.path:
-                sys.path.append(views_dir)
-            
-            # Intentar importar dinámicamente
-            from views.funcion_vista_nna import main as nna_main
-            nna_main()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", 
-                                f"El módulo de Gestión de NNA no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-    
-    def gestion_familiares(self):
-        """Abrir gestión de Familiares"""
-        try:
-            # Importar dentro del método
-            import sys
-            import os
-            
-            views_dir = os.path.join(os.path.dirname(__file__), 'views')
-            if views_dir not in sys.path:
-                sys.path.append(views_dir)
-                
-            from views.funcion_vista_fami import main as fami_main
-            # Crear una nueva ventana para familiares
-            fami_main()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", 
-                                f"El módulo de Gestión de Familiares no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-    
-    def gestion_ue(self):
-        """Abrir gestión de Unidades Educativas"""
-        try:
-            import sys
-            import os
-            
-            views_dir = os.path.join(os.path.dirname(__file__), 'views')
-            if views_dir not in sys.path:
-                sys.path.append(views_dir)
-                
-            from views.funcion_vista_ue import main as ue_main
-            ue_main()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", 
-                                f"El módulo de Unidades Educativas no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-    
-    def gestion_matriculas(self):
-        """Abrir gestión de Matrículas"""
-        try:
-            import sys
-            import os
-            
-            views_dir = os.path.join(os.path.dirname(__file__), 'views')
-            if views_dir not in sys.path:
-                sys.path.append(views_dir)
-                
-            from views.funcion_vista_matricula import main as matricula_main
-            matricula_main()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", 
-                                f"El módulo de Matrículas no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-    
-    def gestion_articulos(self):
-        """Abrir gestión de Artículos"""
-        try:
-            import sys
-            import os
-            
-            views_dir = os.path.join(os.path.dirname(__file__), 'views')
-            if views_dir not in sys.path:
-                sys.path.append(views_dir)
-                
-            from views.funcion_vista_art import main as art_main
-            art_main()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", 
-                                f"El módulo de Artículos no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-    
-    def gestion_personal(self):
-        """Abrir gestión de Personal"""
-        try:
-            import sys
-            import os
-            
-            views_dir = os.path.join(os.path.dirname(__file__), 'views')
-            if views_dir not in sys.path:
-                sys.path.append(views_dir)
-                
-            from views.funcion_vista_personal import PersonalVista
-            # PersonalVista crea su propia ventana Tk()
-            personal_window = PersonalVista()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", 
-                                f"El módulo de Personal no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-            
-    def seguimiento_expedientes(self):
-        """Abrir módulo de Seguimiento de Expedientes"""
-        try:
-            # Importa y lanza la función main del archivo de vista.
-            # Se asume que funcion_vista_seguimiento_expedientes.py está en una ruta de Python accesible.
-            from funcion_vista_seguimiento_expedientes import main as seguimiento_main
-            seguimiento_main()
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", f"El módulo de Seguimiento de Expedientes no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-
-    def configuracion(self):
-        """Abrir módulo de Configuración (como ventana Toplevel)"""
-        try:
-            # La vista de configuración se abre en una nueva ventana Toplevel
-            from configuracion_view import ConfiguracionView
-            
-            config_window = ctk.CTkToplevel(self)
-            # Inicializa la vista de configuración
-            ConfiguracionView(config_window)
-            
-            config_window.protocol("WM_DELETE_WINDOW", config_window.destroy)
-            config_window.focus()
-            config_window.grab_set() # Convierte la ventana en modal
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", f"El módulo de Configuración no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-
-    def reportes(self):
-        """Abrir módulo de Reportes (como ventana Toplevel)"""
-        try:
-            # La vista de reportes se abre en una nueva ventana Toplevel
-            from reportes_view import ReportesView
-            
-            reportes_window = ctk.CTkToplevel(self)
-            # Inicializa la vista de reportes
-            ReportesView(reportes_window) 
-            
-            reportes_window.protocol("WM_DELETE_WINDOW", reportes_window.destroy)
-            reportes_window.focus()
-            reportes_window.grab_set() # Convierte la ventana en modal
-        except ImportError as e:
-            messagebox.showwarning("⚠️ Módulo No Disponible", f"El módulo de Reportes no está disponible.\n\nError: {str(e)}")
-        except Exception as e:
-            messagebox.showerror("❌ Error", f"Error al abrir el módulo: {str(e)}")
-    
     def mostrar_ayuda(self):
-        """Mostrar información de ayuda del sistema"""
         ayuda_texto = """
 🏛️ SISTEMA DE GESTIÓN LOPNNA
-Consejo de Protección de Niños, Niñas y Adolescentes
-📍 Municipio Carrizal
-
-📋 MÓDULOS DISPONIBLES:
-
-👦 Gestión de NNA: Administrar información de Niños, Niñas y Adolescentes
-👨‍👩‍👧‍👦 Gestión de Familiares: Gestionar datos de familiares y tutores
-🏫 Gestión de UE: Administrar Unidades Educativas
-📚 Gestión de Matrículas: Controlar matrículas educativas
-📦 Gestión de Artículos: Administrar artículos del sistema
-👥 Gestión de Personal: Gestionar usuarios del sistema
-
-🎯 INSTRUCCIONES:
-• Para usar cada módulo, haga clic en el botón correspondiente
-• Cada módulo se abre en una ventana independiente
-• Puede tener múltiples módulos abiertos simultáneamente
-
-📞 CONTACTOS:
-• 📧 Soporte técnico: soporte@cpnnacarrizal.gob.ve
-• 📞 Teléfono: (0212) 123-4567
-• 🏢 Dirección: Av. Principal, Carrizal, Edo. Miranda
-
-🛡️ Protegiendo los derechos de la niñez y adolescencia venezolana
-        """
+Este sistema permite la administración integral de:
+- Niños, Niñas y Adolescentes (NNA)
+- Familiares y Representantes
+- Unidades Educativas
+- Matrículas, Artículos y Personal
+- Seguimiento de Expedientes
+- Reportes
+"""
         messagebox.showinfo("❓ Ayuda del Sistema", ayuda_texto)
     
     def on_closing(self):
-        """Manejar el cierre de la aplicación"""
         if messagebox.askyesno("🚪 Salir del Sistema", "¿Está seguro de que desea salir del sistema?"):
-            # Limpiar y destruir
-            self.cleanup()
             self.destroy()
-            sys.exit(0)
 
-    def cleanup(self):
-        """Limpiar recursos antes de cerrar"""
-        try:
-            # Cancelar todos los eventos pendientes
-            for after_id in self.tk.eval('after info').split():
-                self.after_cancel(after_id)
-        except:
-            pass
-
-def iniciar_sistema():
-    """Función para iniciar el sistema completo"""
-    try:
-        # Primero intentar con login
-        from funcion_login import LoginApp
-        login_app = LoginApp()
-        login_app.run()
-    except ImportError:
-        # Si no hay login, ir directamente al menú principal
-        app = MenuApp()
-        app.mainloop()
-    except Exception as e:
-        messagebox.showerror("Error", f"No se pudo iniciar el sistema: {str(e)}")
-        sys.exit(1)
+# ----------------------------------------------------------------------
+# PUNTO DE ENTRADA
+# ----------------------------------------------------------------------
 
 def main():
-    """Función principal alternativa"""
-    app = MenuApp()
-    app.mainloop()
+    try:
+        print("Iniciando aplicación en modo panel lateral...")
+        app = MenuApp()
+        app.mainloop()
+        print("El sistema ha sido cerrado correctamente.")
+        
+    except Exception as e:
+        messagebox.showerror("❌ Error Crítico", f"No se pudo iniciar el sistema: {str(e)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    # Opción 1: Con login
-    iniciar_sistema()
+    main()

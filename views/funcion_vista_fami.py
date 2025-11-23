@@ -7,6 +7,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from controllers.familiar_controller import crear, leer, actualizar, eliminar
 
 def mostrar_resultado(ventana, resultado):
+    
+    def __init__(self):
+        self.app = CTk()
+    # Centrar la ventana en la pantalla
+        self.center_window()
+    
     ventana_resultado = CTkToplevel(ventana)
     ventana_resultado.geometry("800x600")
     ventana_resultado.title("📋 Resultado de la Operación")
@@ -421,6 +427,15 @@ def vista_eliminar():
                  fg_color="#7f8c8d", hover_color="#95a5a6", height=40,
                  font=("Arial", 14)).pack(side="right", padx=20)
 
+    def center_window(self):
+        """Centrar la ventana en la pantalla"""
+        self.app.update_idletasks()
+        width = self.app.winfo_width()
+        height = self.app.winfo_height()
+        x = (self.app.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.app.winfo_screenheight() // 2) - (height // 2)
+        self.app.geometry(f'{width}x{height}+{x}+{y}')
+    
     btn_eliminar = CTkButton(
         main_frame,
         text="🗑️ ELIMINAR FAMILIAR",

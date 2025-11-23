@@ -6,135 +6,93 @@ from tkinter import messagebox
 # Agregar el directorio raíz del proyecto al path de Python
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from controllers.personal_controller import PersonalController
 
-class PersonalVista():
-    def __init__(self):
-        self.controller = PersonalController()
-        self.root = ctk.CTk()
+# CORRECCIÓN CLAVE: PersonalVista debe heredar de ctk.CTkFrame
+# y recibir el master (contenedor) y el controller inyectado
+class PersonalVista(ctk.CTkFrame):
+    
+    # MODIFICACIÓN CLAVE: Recibir master y controller
+    def __init__(self, master, controller=None):
+        super().__init__(master, fg_color="transparent") # Inicializa como un frame
         
-        # Configurar ventana principal
-        self.root.title("👥 Gestión de Personal - CPNNA Carrizal")
-        self.root.geometry("1000x800")
-        self.root.configure(fg_color="#2e2e2e")
+        # Configurar el frame principal (que es 'self')
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
         
         # Variables de control
-        self.cedula = ctk.StringVar()
-        self.primer_nombre = ctk.StringVar()
-        self.segundo_nombre = ctk.StringVar()
-        self.primer_apellido = ctk.StringVar()
-        self.segundo_apellido = ctk.StringVar()
-        self.telefono = ctk.StringVar()
-        self.nombre_usuario = ctk.StringVar()
-        self.password = ctk.StringVar()
+        self.cedula = ctk.StringVar(self)
+        self.primer_nombre = ctk.StringVar(self)
+        self.segundo_nombre = ctk.StringVar(self)
+        self.primer_apellido = ctk.StringVar(self)
+        self.segundo_apellido = ctk.StringVar(self)
+        self.telefono = ctk.StringVar(self)
+        self.nombre_usuario = ctk.StringVar(self)
+        self.password = ctk.StringVar(self)
 
         self.crear_interfaz()
-        self.root.mainloop()
+        # Se elimina self.root.mainloop()
 
     def crear_interfaz(self):
-        # Frame principal
-        main_frame = ctk.CTkFrame(self.root, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=30, pady=10)
+        # Frame de Contenido Scrollable
+        scroll_frame = ctk.CTkScrollableFrame(self, fg_color="#3c3c3c", corner_radius=10, label_text="👥 Registro de Nuevo Personal")
+        scroll_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+        scroll_frame.columnconfigure(1, weight=1) # Columna de entradas es flexible
 
         # Título
-        title_label = ctk.CTkLabel(
-            main_frame,
-            text="👥 REGISTRO DE PERSONAL",
-            font=("Arial", 28, "bold"),
-            text_color="#3498db"
-        )
-        title_label.pack(pady=(0, 5))
+        ctk.CTkLabel(scroll_frame, text="Registro de Personal", 
+                     font=ctk.CTkFont(size=24, weight="bold")).grid(row=0, column=0, columnspan=2, pady=(20, 30), sticky="n")
 
-        # Frame del formulario
-        form_frame = ctk.CTkFrame(main_frame)
-        form_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
-        # Configurar grid del formulario
-        form_frame.columnconfigure(1, weight=1)
-
-        # Campos del formulario con emojis
-        campos = [
-            ("🆔 Cédula*:", self.cedula, "Ej: V-12345678"),
-            ("👤 Primer nombre*:", self.primer_nombre, "Ej: María"),
-            ("👤 Segundo nombre:", self.segundo_nombre, "Ej: José"),
-            ("👤 Primer apellido*:", self.primer_apellido, "Ej: González"),
-            ("👤 Segundo apellido:", self.segundo_apellido, "Ej: Pérez"),
-            ("📞 Teléfono*:", self.telefono, "11 dígitos - Ej: 04141234567"),
-            ("👤 Nombre de usuario*:", self.nombre_usuario, "Ej: mgonzalez"),
-            ("🔒 Contraseña*:", self.password, "Ingrese una contraseña segura")
+        # Campos del Formulario
+        fields = [
+            ("Cédula", self.cedula),
+            ("Primer Nombre", self.primer_nombre),
+            ("Segundo Nombre", self.segundo_nombre),
+            ("Primer Apellido", self.primer_apellido),
+            ("Segundo Apellido", self.segundo_apellido),
+            ("Teléfono (11 dígitos)", self.telefono),
+            ("Nombre de Usuario", self.nombre_usuario),
+            ("Contraseña", self.password, True), # El tercer elemento indica si es campo de contraseña
         ]
-
-        for i, (label, var, placeholder) in enumerate(campos):
-            # Label
-            ctk.CTkLabel(
-                form_frame, 
-                text=label, 
-                font=("Arial", 14, "bold")
-            ).grid(row=i, column=0, padx=20, pady=15, sticky="e")
+        
+        current_row = 1
+        for label_text, var, *is_password in fields:
+            is_pass = is_password[0] if is_password else False
             
-            # Entry
-            if "Contraseña" in label:
-                entry = ctk.CTkEntry(
-                    form_frame, 
-                    textvariable=var,
-                    placeholder_text=placeholder,
-                    show="*",
-                    height=45,
-                    font=("Arial", 14)
-                )
-            else:
-                entry = ctk.CTkEntry(
-                    form_frame, 
-                    textvariable=var,
-                    placeholder_text=placeholder,
-                    height=45,
-                    font=("Arial", 14)
-                )
-            entry.grid(row=i, column=1, padx=20, pady=15, sticky="ew")
+            ctk.CTkLabel(scroll_frame, text=label_text, font=("Arial", 14)).grid(row=current_row, column=0, sticky="w", padx=20, pady=(10, 5))
+            
+            entry = ctk.CTkEntry(scroll_frame, textvariable=var, height=40, font=("Arial", 14), 
+                                 show="*" if is_pass else "")
+            entry.grid(row=current_row, column=1, sticky="ew", padx=20, pady=(10, 5))
+            
+            current_row += 1
 
-        # Frame de botones
-        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.pack(fill="x", pady=10)
-
-        # Botón Crear
-        btn_crear = ctk.CTkButton(
-            button_frame,
-            text="💾 REGISTRAR PERSONAL",
-            command=self.crear_personal,
-            height=60,
-            font=("Arial", 18, "bold"),
-            fg_color="#27ae60",
-            hover_color="#219a52"
-        )
-        btn_crear.pack(side="left", expand=True, padx=20)
+        # Botón de Registro
+        ctk.CTkButton(scroll_frame, text="✅ Registrar Personal", command=self.agregar_personal, height=50, 
+                      fg_color="#2ecc71", hover_color="#27ae60", font=ctk.CTkFont(size=18, weight="bold")).grid(row=current_row, column=0, columnspan=2, pady=(30, 20), padx=20, sticky="ew")
 
         # Botón Limpiar
-        btn_limpiar = ctk.CTkButton(
-            button_frame,
-            text="🧹 LIMPIAR FORMULARIO",
-            command=self.limpiar_formulario,
-            height=60,
-            font=("Arial", 18, "bold"),
-            fg_color="#f39c12",
-            hover_color="#e67e22"
-        )
-        btn_limpiar.pack(side="right", expand=True, padx=20)
+        ctk.CTkButton(scroll_frame, text="🧹 Limpiar Formulario", command=self.limpiar_formulario, height=40, 
+                      fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=14)).grid(row=current_row + 1, column=0, columnspan=2, pady=(0, 20), padx=20, sticky="ew")
 
-    def crear_personal(self):
-        """Maneja la creación de nuevo personal"""
-        # Recoger los datos de las variables
-        cedula = self.cedula.get()
-        primer_nombre = self.primer_nombre.get()
-        segundo_nombre = self.segundo_nombre.get()
-        primer_apellido = self.primer_apellido.get()
-        segundo_apellido = self.segundo_apellido.get()
-        telefono = self.telefono.get()
-        nombre_usuario = self.nombre_usuario.get()
-        password = self.password.get()
 
-        # Validaciones básicas
+    def agregar_personal(self):
+        """Valida y registra un nuevo personal."""
+        cedula = self.cedula.get().strip()
+        primer_nombre = self.primer_nombre.get().strip()
+        segundo_nombre = self.segundo_nombre.get().strip()
+        primer_apellido = self.primer_apellido.get().strip()
+        segundo_apellido = self.segundo_apellido.get().strip()
+        telefono = self.telefono.get().strip()
+        nombre_usuario = self.nombre_usuario.get().strip()
+        password = self.password.get() # No strip en password por si se permiten espacios
+
+        # Validación
         if not cedula or not primer_nombre or not primer_apellido:
-            messagebox.showerror("❌ Error", "Cédula, primer nombre y primer apellido son obligatorios")
+            messagebox.showerror("❌ Error", "Cédula, Primer Nombre y Primer Apellido son obligatorios.")
+            return
+
+        if not cedula.isdigit() or len(cedula) < 6:
+            messagebox.showerror("❌ Error", "La cédula debe ser numérica y válida.")
             return
 
         if len(telefono) != 11 or not telefono.isdigit():
@@ -171,5 +129,4 @@ class PersonalVista():
         self.password.set("")
 
 # Para iniciar la aplicación
-if __name__ == "__main__":
-    vista = PersonalVista()
+# Se elimina el bloque if __name__ == '__main__':

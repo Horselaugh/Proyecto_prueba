@@ -7,7 +7,7 @@ from models.articulo_model import ArticuloModelo
 from sqlite3 import Row
 from typing import List, Dict, Optional
 
-class ArticuloController:
+class GestionArticulosControlador:
     """Controlador para gestionar las operaciones de Artículos LOPNNA"""
 
     def __init__(self):

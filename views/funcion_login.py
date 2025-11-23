@@ -3,9 +3,29 @@ from tkinter import messagebox
 import sys
 import os
 
-# Agregar el directorio actual al path para importar menu.py
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 1. Configuración de path para importaciones
+# Añadir el directorio padre al path para manejar importaciones relativas
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 2. 🟢 CORRECCIÓN EN IMPORTACIÓN: Importar MenuApp al inicio
+try:
+    # Asume que 'views.menu' es el módulo correcto (debes tener views/menu.py)
+    from views.menu import MenuApp 
+except ImportError:
+    # Definición de un Mock compatible en caso de que MenuApp no se encuentre
+    class MenuApp:
+        # 🟢 CORRECCIÓN: El mock ahora acepta el argumento next_module_ref
+        def __init__(self, next_module_ref):
+            self.next_module_ref = next_module_ref
+            self.app = ctk.CTk()
+            self.app.title("MenuApp Mock (Error de Importación)")
+            self.app.geometry("200x100")
+            ctk.CTkLabel(self.app, text="Menu Principal (Mock)").pack(pady=20)
+        def mainloop(self):
+            # Simplemente ejecuta el mock y destruye si se llama
+            self.app.mainloop()
+            self.app.destroy()
+            
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
 
@@ -69,6 +89,7 @@ class LoginApp:
             messagebox.showerror("Error", "Por favor, complete todos los campos")
             return
 
+        # Aquí se debería llamar a un controlador o modelo para verificar credenciales
         if usuario in self.valid_users and self.valid_users[usuario] == password:
             messagebox.showinfo("Inicio exitoso", f"Bienvenido, {usuario}!")
             self.open_main_window()
@@ -133,13 +154,25 @@ class LoginApp:
         """Abrir el menú principal después del login exitoso"""
         self.app.destroy()
         
+        # 🟢 CORRECCIÓN CLAVE: Definir y pasar el argumento next_module_ref
+        # Esta lista mutable se pasa a MenuApp para que pueda indicar 
+        # al módulo de login cuál es el siguiente paso ("menu" o "exit").
+        next_module_ref = ["menu"] 
+        
         try:
-            from views.menu import MenuApp
-            main_app = MenuApp()
+            # 🟢 CORRECCIÓN: Pasar el argumento requerido al constructor
+            main_app = MenuApp(next_module_ref) 
             main_app.mainloop()
-        except ImportError as e:
-            messagebox.showerror("Error", f"No se pudo cargar el menú principal: {str(e)}")
+            
+            # Opcional: Si MenuApp modificó next_module_ref, actuar en consecuencia
+            if next_module_ref[0] == "exit":
+                sys.exit(0)
+                
+        except Exception as e:
+             # Manejar cualquier otro error que pueda ocurrir al iniciar MenuApp
+            messagebox.showerror("Error Crítico", f"No se pudo iniciar el menú principal: {str(e)}")
             sys.exit(1)
+
 
     def run(self):
         self.app.mainloop()
