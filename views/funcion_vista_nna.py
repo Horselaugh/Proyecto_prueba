@@ -1,378 +1,285 @@
-import sys
-import os
-from customtkinter import *
+import customtkinter as ctk
+from tkinter import messagebox
+from typing import Dict, List, Optional
+import datetime
 
-# Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ----------------------------------------------------------------------
+# MOCK DE MODELO (TEMPORAL)
+# ----------------------------------------------------------------------
+class MockNNAModel:
+    def obtener_por_id(self, id):
+        if id == 1:
+            return {
+                "id": 1, "primer_nombre": "Carlos", "segundo_nombre": "Manuel", 
+                "primer_apellido": "López", "segundo_apellido": "Díaz",
+                "fecha_nacimiento": "2015-05-20", "genero": "Masculino",
+                "direccion": "Av. Principal, Casa 5", "telefono": "555-4321", 
+                "documento_identidad": "V12345678" # Cédula si aplica
+            }
+        return None
 
-from controllers.nna_controller import NNAController  # Cambiar esta importación
+    def crear_nna(self, datos):
+        return {"status": "success", "message": "NNA creado.", "id": 2}
 
-# Crear instancia del controlador
-nna_controller = NNAController()
+    def actualizar_nna(self, id, **kwargs):
+        return {"status": "success", "message": f"NNA ID {id} actualizado."}
 
-def mostrar_resultado(ventana, resultado):
-    ventana_resultado = CTkToplevel(ventana)
-    ventana_resultado.geometry("800x600")
-    ventana_resultado.title("📋 Resultado de la Operación")
-    ventana_resultado.configure(fg_color="#1e1e1e")
+    def eliminar_nna(self, id):
+        return {"status": "success", "message": f"NNA ID {id} eliminado."}
     
-    texto = CTkTextbox(ventana_resultado, wrap="word", font=("Arial", 14))
-    texto.pack(fill="both", expand=True, padx=20, pady=20)
-    
-    if resultado.get("status") == "success":
-        texto.insert("1.0", "✅ OPERACIÓN EXITOSA\n\n")
-        if "message" in resultado:
-            texto.insert("end", resultado["message"] + "\n\n")
-        if "data" in resultado:
-            texto.insert("end", "📊 DATOS ENCONTRADOS:\n")
-            texto.insert("end", "="*50 + "\n")
-            for row in resultado["data"]:
-                texto.insert("end", str(row) + "\n")
-    else:
-        texto.insert("1.0", "❌ ERROR EN LA OPERACIÓN\n\n")
-        texto.insert("end", resultado.get("error", "Error desconocido"))
-    
-    texto.configure(state="disabled")
+    def listar_todos(self): return []
+    def listar_generos(self): return ["Femenino", "Masculino", "Otro"]
 
-def main():
-    ventana = CTkToplevel()
-    ventana.geometry("1400x900")
-    ventana.title("👦 Gestión de NNA (Niños, Niñas y Adolescentes)")
-    ventana.configure(fg_color="#1e1e1e")
-    
-    # Centrar contenido
-    frame_principal = CTkFrame(ventana, fg_color="transparent")
-    frame_principal.pack(expand=True, fill="both", padx=80, pady=80)
-    
-    CTkLabel(frame_principal, text="👦 GESTIÓN DE NNA", 
-             font=("Arial", 28, "bold")).pack(pady=40)
-    
-    CTkLabel(frame_principal, text="Niños, Niñas y Adolescentes - Seleccione una operación:", 
-             font=("Arial", 18)).pack(pady=10)
+# ----------------------------------------------------------------------
+# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
+# ----------------------------------------------------------------------
+class NNAControlador:
+    def __init__(self):
+        self.modelo = MockNNAModel() 
+        self.vista = None
 
-    # Frame para botones
-    frame_botones = CTkFrame(frame_principal, fg_color="transparent")
-    frame_botones.pack(expand=True, pady=40)
-
-    btn_crear = CTkButton(frame_botones, text="➕ CREAR NNA", 
-                         command=vista_crear, height=60, width=300,
-                         font=("Arial", 18, "bold"), fg_color="#2aa876", hover_color="#228c61")
-    btn_crear.pack(pady=20)
-    
-    btn_leer = CTkButton(frame_botones, text="🔍 BUSCAR NNA", 
-                        command=vista_leer, height=60, width=300,
-                        font=("Arial", 18, "bold"), fg_color="#3b8ed0", hover_color="#2d70a7")
-    btn_leer.pack(pady=20)
-
-    btn_actualizar = CTkButton(frame_botones, text="✏️ ACTUALIZAR NNA", 
-                              command=vista_actualizar, height=60, width=300,
-                              font=("Arial", 18, "bold"), fg_color="#f0b400", hover_color="#c79500")
-    btn_actualizar.pack(pady=20)
-
-    btn_eliminar = CTkButton(frame_botones, text="🗑️ ELIMINAR NNA", 
-                            command=vista_eliminar, height=60, width=300,
-                            font=("Arial", 18, "bold"), fg_color="#e74c3c", hover_color="#c0392b")
-    btn_eliminar.pack(pady=20)
-
-    ventana.mainloop()
-
-def vista_crear():
-    ventana = CTkToplevel()
-    ventana.geometry("1200x800")
-    ventana.title("➕ Crear NNA")
-    ventana.configure(fg_color="#1e1e1e")
-    ventana.grid_columnconfigure(1, weight=1)
-
-    # Título
-    CTkLabel(ventana, text="➕ CREAR NUEVO NNA", 
-             font=("Arial", 24, "bold")).grid(row=0, column=0, columnspan=2, pady=10)
-
-    campos = {
-        "primer_nombre": CTkEntry(ventana, placeholder_text="👦 Primer nombre", height=45, font=("Arial", 14)),
-        "segundo_nombre": CTkEntry(ventana, placeholder_text="👦 Segundo nombre (opcional)", height=45, font=("Arial", 14)),
-        "primer_apellido": CTkEntry(ventana, placeholder_text="📝 Primer apellido", height=45, font=("Arial", 14)),
-        "segundo_apellido": CTkEntry(ventana, placeholder_text="📝 Segundo apellido (opcional)", height=45, font=("Arial", 14)),
-        "fecha_nacimiento": CTkEntry(ventana, placeholder_text="📅 YYYY-MM-DD", height=45, font=("Arial", 14)),
-        "genero": CTkOptionMenu(ventana, values=["👦 M", "👧 F"], height=45, font=("Arial", 14)),
-        "direccion": CTkEntry(ventana, placeholder_text="🏠 Dirección completa", height=45, font=("Arial", 14)),
-        "telefono": CTkEntry(ventana, placeholder_text="📞 11 dígitos", height=45, font=("Arial", 14))
-    }
-
-    labels = [
-        ("👦 Primer nombre*:", campos["primer_nombre"]),
-        ("👦 Segundo nombre:", campos["segundo_nombre"]),
-        ("📝 Primer apellido*:", campos["primer_apellido"]),
-        ("📝 Segundo apellido:", campos["segundo_apellido"]),
-        ("📅 Fecha Nacimiento* (YYYY-MM-DD):", campos["fecha_nacimiento"]),
-        ("⚧️ Género*:", campos["genero"]),
-        ("🏠 Dirección*:", campos["direccion"]),
-        ("📞 Teléfono* (11 dígitos):", campos["telefono"])
-    ]
-
-    for i, (label_text, entry) in enumerate(labels, start=1):
-        CTkLabel(ventana, text=label_text, font=("Arial", 16)).grid(row=i, column=0, padx=30, pady=15, sticky="e")
-        entry.grid(row=i, column=1, padx=30, pady=15, sticky="ew")
-
-    def ejecutar_crear():
-        # Validaciones
-        if not campos["primer_nombre"].get():
-            mostrar_resultado(ventana, {"error": "❌ El primer nombre es obligatorio", "status": "error"})
-            return
-        if not campos["primer_apellido"].get():
-            mostrar_resultado(ventana, {"error": "❌ El primer apellido es obligatorio", "status": "error"})
-            return
-        if not campos["fecha_nacimiento"].get():
-            mostrar_resultado(ventana, {"error": "❌ La fecha de nacimiento es obligatoria", "status": "error"})
-            return
-        if not campos["direccion"].get():
-            mostrar_resultado(ventana, {"error": "❌ La dirección es obligatoria", "status": "error"})
-            return
-            
-        telefono = campos["telefono"].get()
-        if not telefono or len(telefono) != 11 or not telefono.isdigit():
-            mostrar_resultado(ventana, {"error": "❌ El teléfono debe tener exactamente 11 dígitos", "status": "error"})
-            return
-            
-        # Validar formato de fecha
-        fecha = campos["fecha_nacimiento"].get()
-        if len(fecha) != 10 or fecha[4] != '-' or fecha[7] != '-':
-            mostrar_resultado(ventana, {"error": "❌ Formato de fecha debe ser YYYY-MM-DD", "status": "error"})
-            return
-
-        # ✅ CORREGIDO: Usar la instancia del controlador
-        resultado = nna_controller.crear(
-            primer_nombre=campos["primer_nombre"].get(),
-            primer_apellido=campos["primer_apellido"].get(),
-            fecha_nacimiento=campos["fecha_nacimiento"].get(),
-            genero=campos["genero"].get().replace("👦 ", "").replace("👧 ", ""),
-            direccion=campos["direccion"].get(),
-            telefono=telefono,
-            segundo_nombre=campos["segundo_nombre"].get() or None,
-            segundo_apellido=campos["segundo_apellido"].get() or None
-        )
-        mostrar_resultado(ventana, resultado)
-
-    btn_crear = CTkButton(ventana, text="🚀 CREAR NNA", command=ejecutar_crear,
-                         height=55, font=("Arial", 18, "bold"), fg_color="#2aa876", hover_color="#228c61")
-    btn_crear.grid(row=9, column=0, columnspan=2, pady=40)
-
-    ventana.grid_columnconfigure(1, weight=1)
-
-def vista_leer():
-    ventana = CTkToplevel()
-    ventana.geometry("1200x800")
-    ventana.title("🔍 Buscar NNA")
-    ventana.configure(fg_color="#1e1e1e")
-    ventana.grid_columnconfigure(0, weight=1)
-
-    CTkLabel(ventana, text="🔍 BUSCAR NNA", font=("Arial", 24, "bold")).grid(row=0, column=0, pady=10)
-    
-    CTkLabel(ventana, text="🔎 Buscar por:", font=("Arial", 18)).grid(row=1, column=0, sticky="w", padx=30, pady=15)
-    
-    opcion_busqueda = StringVar(value="nombre")
-    frame_opciones = CTkFrame(ventana, fg_color="#2e2e2e")
-    frame_opciones.grid(row=2, column=0, sticky="ew", padx=30, pady=15)
-    
-    CTkRadioButton(frame_opciones, text="👤 Nombre y Apellido", variable=opcion_busqueda, value="nombre", font=("Arial", 16)).pack(side="left", padx=25, pady=10)
-    CTkRadioButton(frame_opciones, text="🔢 ID", variable=opcion_busqueda, value="id", font=("Arial", 16)).pack(side="left", padx=25, pady=10)
-
-    frame_campos = CTkFrame(ventana, fg_color="#2e2e2e")
-    frame_campos.grid(row=3, column=0, sticky="nsew", padx=30, pady=25)
-    frame_campos.grid_columnconfigure(1, weight=1)
-
-    current_entries = {}
-    
-    def mostrar_campos():
-        for widget in frame_campos.winfo_children():
-            widget.destroy()
+    def set_view(self, view_instance):
+        self.vista = view_instance
         
-        if opcion_busqueda.get() == "nombre":
-            CTkLabel(frame_campos, text="👦 Primer nombre:", font=("Arial", 16)).grid(row=0, column=0, padx=15, pady=20, sticky="e")
-            entry_nombre = CTkEntry(frame_campos, height=45, font=("Arial", 14))
-            entry_nombre.grid(row=0, column=1, padx=15, pady=20, sticky="ew")
-            
-            CTkLabel(frame_campos, text="📝 Primer apellido:", font=("Arial", 16)).grid(row=1, column=0, padx=15, pady=20, sticky="e")
-            entry_apellido = CTkEntry(frame_campos, height=45, font=("Arial", 14))
-            entry_apellido.grid(row=1, column=1, padx=15, pady=20, sticky="ew")
-            
-            current_entries["primer_nombre"] = entry_nombre
-            current_entries["primer_apellido"] = entry_apellido
+    def load_initial_data(self):
+        generos = self.modelo.listar_generos()
+        self.vista._cargar_generos(generos)
+        self.vista.display_message("Listo para gestionar NNA. Use el campo de búsqueda para cargar.", is_success=True)
+
+    def handle_crear_nna(self, *args): self.vista.display_message("Mock: Crear NNA", True)
+    def handle_cargar_nna_por_id(self, id): 
+        resultado = self.modelo.obtener_por_id(id)
+        if resultado:
+            self.vista._establecer_datos_formulario(resultado)
+            self.vista.display_message("Mock: NNA cargado (ID 1)", True)
         else:
-            CTkLabel(frame_campos, text="🔢 ID del NNA:", font=("Arial", 16)).grid(row=0, column=0, padx=15, pady=20, sticky="e")
-            entry_id = CTkEntry(frame_campos, height=45, font=("Arial", 14))
-            entry_id.grid(row=0, column=1, padx=15, pady=20, sticky="ew")
-            current_entries["id"] = entry_id
-    
-    opcion_busqueda.trace_add("write", lambda *args: mostrar_campos())
-    mostrar_campos()
+            self.vista.display_message("Mock: NNA no encontrado", False)
+            self.vista.limpiar_entradas(clean_search=False)
+            
+    def handle_actualizar_nna(self, *args): self.vista.display_message("Mock: Actualizar NNA", True)
+    def handle_eliminar_nna(self, *args): self.vista.display_message("Mock: Eliminar NNA", True)
 
-    def ejecutar_leer():
-        if opcion_busqueda.get() == "nombre":
-            nombre = current_entries["primer_nombre"].get() if "primer_nombre" in current_entries else ""
-            apellido = current_entries["primer_apellido"].get() if "primer_apellido" in current_entries else ""
-            if not nombre or not apellido:
-                mostrar_resultado(ventana, {"error": "❌ Debe ingresar nombre y apellido", "status": "error"})
-                return
-            # ✅ CORREGIDO: Usar la instancia del controlador
-            resultado = nna_controller.leer(primer_nombre=nombre, primer_apellido=apellido)
+
+# ----------------------------------------------------------------------
+# CLASE DE VISTA ADAPTADA
+# ----------------------------------------------------------------------
+
+class NNAViewFrame(ctk.CTkFrame):
+    """
+    Vista para el módulo de gestión de NNA (Niños, Niñas y Adolescentes). 
+    Hereda de CTkFrame.
+    """
+    
+    def __init__(self, master, controller: NNAControlador):
+        super().__init__(master, corner_radius=0, fg_color="transparent") 
+        
+        self.controller = controller 
+        self.controller.set_view(self) # Registrar la vista
+        
+        self.nna_id_cargado: Optional[int] = None
+        
+        # Variables de control
+        self.buscar_id_var = ctk.StringVar(self)
+        self.doc_id_var = ctk.StringVar(self)
+        self.p_nombre_var = ctk.StringVar(self)
+        self.s_nombre_var = ctk.StringVar(self)
+        self.p_apellido_var = ctk.StringVar(self)
+        self.s_apellido_var = ctk.StringVar(self)
+        self.f_nacimiento_var = ctk.StringVar(self, value=datetime.date.today().isoformat())
+        self.genero_var = ctk.StringVar(self)
+        self.telefono_var = ctk.StringVar(self)
+        self.direccion_var = ctk.StringVar(self)
+        
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1) 
+        
+        self._configurar_interfaz()
+
+    # MÉTODO CLAVE: Requerido por la estructura de menu.py
+    def show(self):
+        """Llamado por MenuApp, invoca la carga de datos iniciales del controlador."""
+        self.controller.load_initial_data() 
+
+    def _configurar_interfaz(self):
+        """Configura la interfaz gráfica (Diseño General CRUD)."""
+        
+        # Título y Mensaje
+        self.title_label = ctk.CTkLabel(self, text="👶 GESTIÓN DE NNA", 
+                                        font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.grid(row=0, column=0, pady=(20, 10), padx=20, sticky="ew")
+
+        self.message_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=14), text_color="yellow")
+        self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
+
+        # Contenedor principal scrollable para el formulario largo
+        scroll_frame = ctk.CTkScrollableFrame(self, fg_color="#3c3c3c", corner_radius=10, label_text="DATOS PERSONALES")
+        scroll_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        scroll_frame.columnconfigure((0, 1), weight=1)
+        
+        # --- Sección de Búsqueda ---
+        search_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        search_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="ew")
+        search_frame.columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(search_frame, text="Buscar NNA (ID)", font=("Arial", 14)).grid(row=0, column=0, sticky="w", padx=10, pady=(5, 5))
+        
+        search_entry = ctk.CTkEntry(search_frame, textvariable=self.buscar_id_var, placeholder_text="ID del NNA...", height=40)
+        search_entry.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        
+        ctk.CTkButton(search_frame, text="🔍 Buscar y Cargar", command=self._handle_buscar_nna, height=40,
+                      fg_color="#3498db", hover_color="#2980b9").grid(row=1, column=1, padx=(10, 0), pady=(0, 10))
+
+        # --- Campos del Formulario ---
+        # Fila 1: Nombres
+        self._add_field(scroll_frame, 2, 0, "Primer Nombre (Obligatorio):", self.p_nombre_var)
+        self._add_field(scroll_frame, 2, 1, "Segundo Nombre:", self.s_nombre_var)
+        
+        # Fila 2: Apellidos
+        self._add_field(scroll_frame, 4, 0, "Primer Apellido (Obligatorio):", self.p_apellido_var)
+        self._add_field(scroll_frame, 4, 1, "Segundo Apellido:", self.s_apellido_var)
+        
+        # Fila 3: Cédula/Identificación y Fecha de Nacimiento
+        self._add_field(scroll_frame, 6, 0, "Documento de Identidad (Opcional):", self.doc_id_var)
+        self._add_field(scroll_frame, 6, 1, "Fecha de Nacimiento (YYYY-MM-DD):", self.f_nacimiento_var)
+        
+        # Fila 4: Género y Teléfono
+        self._add_field(scroll_frame, 8, 0, "Género:", self.genero_var, is_combo=True)
+        self._add_field(scroll_frame, 8, 1, "Teléfono:", self.telefono_var)
+
+        # Fila 5: Dirección
+        self._add_field(scroll_frame, 10, 0, "Dirección:", self.direccion_var, columnspan=2)
+        
+        # Frame de Botones
+        button_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        button_frame.grid(row=12, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="ew")
+        
+        # Botones
+        ctk.CTkButton(button_frame, text="➕ Crear NNA", command=self._handle_crear_nna, height=45, 
+                      fg_color="#2ecc71", hover_color="#27ae60", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
+        
+        self.btn_modificar = ctk.CTkButton(button_frame, text="✏️ Modificar", command=self._handle_actualizar_nna, height=45, 
+                      fg_color="#f39c12", hover_color="#e67e22", font=ctk.CTkFont(size=16, weight="bold"), state="disabled")
+        self.btn_modificar.pack(side="left", expand=True, fill="x", padx=5)
+        
+        self.btn_eliminar = ctk.CTkButton(button_frame, text="🗑️ Eliminar", command=self._handle_eliminar_nna, height=45, 
+                      fg_color="#e74c3c", hover_color="#c0392b", font=ctk.CTkFont(size=16, weight="bold"), state="disabled")
+        self.btn_eliminar.pack(side="left", expand=True, fill="x", padx=5)
+        
+        ctk.CTkButton(button_frame, text="🧹 Limpiar", command=self.limpiar_entradas, height=45, 
+                      fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
+
+    def _add_field(self, parent, row, column, label_text, var, is_combo=False, columnspan=1):
+        """Función auxiliar para añadir etiquetas y campos de entrada/combobox."""
+        ctk.CTkLabel(parent, text=label_text, font=("Arial", 14)).grid(row=row, column=column, columnspan=columnspan, sticky="w", padx=10, pady=(10, 5))
+        
+        if is_combo:
+            self.genero_combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40)
+            self.genero_combo.grid(row=row + 1, column=column, columnspan=columnspan, sticky="ew", padx=10, pady=(0, 5))
         else:
-            id_nna = current_entries["id"].get() if "id" in current_entries else ""
-            if not id_nna:
-                mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
-                return
-            # ✅ CORREGIDO: Usar la instancia del controlador
-            resultado = nna_controller.leer(id=id_nna)
-        
-        mostrar_resultado(ventana, resultado)
+            ctk.CTkEntry(parent, textvariable=var, height=40).grid(row=row + 1, column=column, columnspan=columnspan, sticky="ew", padx=10, pady=(0, 5))
 
-    frame_boton = CTkFrame(ventana, fg_color="transparent")
-    frame_boton.grid(row=4, column=0, sticky="e", padx=30, pady=25)
-    btn_leer = CTkButton(frame_boton, text="🔍 BUSCAR", command=ejecutar_leer,
-                        height=55, font=("Arial", 18, "bold"), fg_color="#3b8ed0", hover_color="#2d70a7")
-    btn_leer.pack(padx=15, pady=15)
-
-    ventana.grid_rowconfigure(3, weight=1)
-
-def vista_actualizar():
-    ventana = CTkToplevel()
-    ventana.geometry("1200x800")
-    ventana.title("✏️ Actualizar NNA")
-    ventana.configure(fg_color="#1e1e1e")
-    ventana.grid_columnconfigure(1, weight=1)
+    # ----------------------------------------------------------------------
+    # Métodos de Eventos (Delegación al Controlador)
+    # ----------------------------------------------------------------------
     
-    main_frame = CTkFrame(ventana, fg_color="#2e2e2e")
-    main_frame.grid(row=0, column=0, columnspan=2, padx=30, pady=10, sticky="nsew")
-    main_frame.grid_columnconfigure(1, weight=1)
+    def _handle_crear_nna(self):
+        data = self._obtener_datos_formulario()
+        self.controller.handle_crear_nna(data)
+            
+    def _handle_buscar_nna(self):
+        termino = self.buscar_id_var.get().strip()
+        if termino.isdigit():
+            self.controller.handle_cargar_nna_por_id(int(termino))
+        else:
+            self.display_message("❌ Ingrese un ID numérico para buscar.", is_success=False)
+            self.limpiar_entradas(clean_search=False)
 
-    CTkLabel(main_frame, text="✏️ ACTUALIZAR NNA", font=("Arial", 24, "bold")).grid(row=0, column=0, columnspan=2, pady=25)
-
-    CTkLabel(main_frame, text="🔢 ID del NNA a actualizar:", font=("Arial", 16)).grid(row=1, column=0, padx=15, pady=15, sticky="e")
-    entry_id = CTkEntry(main_frame, height=45, font=("Arial", 14))
-    entry_id.grid(row=1, column=1, padx=15, pady=15, sticky="ew")
-
-    CTkLabel(main_frame, text="📝 Complete solo los campos a actualizar:", font=("Arial", 16)).grid(row=2, column=0, columnspan=2, pady=20)
-
-    campos = {
-        "primer_nombre": CTkEntry(main_frame, placeholder_text="👦 Nuevo primer nombre", height=45, font=("Arial", 14)),
-        "segundo_nombre": CTkEntry(main_frame, placeholder_text="👦 Nuevo segundo nombre", height=45, font=("Arial", 14)),
-        "primer_apellido": CTkEntry(main_frame, placeholder_text="📝 Nuevo primer apellido", height=45, font=("Arial", 14)),
-        "segundo_apellido": CTkEntry(main_frame, placeholder_text="📝 Nuevo segundo apellido", height=45, font=("Arial", 14)),
-        "fecha_nacimiento": CTkEntry(main_frame, placeholder_text="📅 YYYY-MM-DD", height=45, font=("Arial", 14)),
-        "genero": CTkOptionMenu(main_frame, values=["", "👦 M", "👧 F"], height=45, font=("Arial", 14)),
-        "direccion": CTkEntry(main_frame, placeholder_text="🏠 Nueva dirección", height=45, font=("Arial", 14)),
-        "telefono": CTkEntry(main_frame, placeholder_text="📞 Nuevo teléfono (11 dígitos)", height=45, font=("Arial", 14))
-    }
-
-    labels = [
-        ("👦 Nuevo primer nombre:", campos["primer_nombre"]),
-        ("👦 Nuevo segundo nombre:", campos["segundo_nombre"]),
-        ("📝 Nuevo primer apellido:", campos["primer_apellido"]),
-        ("📝 Nuevo segundo apellido:", campos["segundo_apellido"]),
-        ("📅 Nueva fecha nacimiento:", campos["fecha_nacimiento"]),
-        ("⚧️ Nuevo género:", campos["genero"]),
-        ("🏠 Nueva dirección:", campos["direccion"]),
-        ("📞 Nuevo teléfono:", campos["telefono"])
-    ]
-
-    for i, (label_text, entry) in enumerate(labels, start=3):
-        CTkLabel(main_frame, text=label_text, font=("Arial", 16)).grid(row=i, column=0, padx=15, pady=15, sticky="e")
-        entry.grid(row=i, column=1, padx=15, pady=15, sticky="ew")
-
-    def ejecutar_actualizar():
-        id_nna = entry_id.get()
-        if not id_nna:
-            mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
+            
+    def _handle_actualizar_nna(self):
+        if not self.nna_id_cargado:
+            self.display_message("❌ Primero debe buscar y cargar un NNA para modificarlo.", is_success=False)
             return
-        
-        datos_actualizar = {}
-        if campos["primer_nombre"].get(): 
-            datos_actualizar["primer_nombre"] = campos["primer_nombre"].get()
-        if campos["segundo_nombre"].get(): 
-            datos_actualizar["segundo_nombre"] = campos["segundo_nombre"].get()
-        if campos["primer_apellido"].get(): 
-            datos_actualizar["primer_apellido"] = campos["primer_apellido"].get()
-        if campos["segundo_apellido"].get(): 
-            datos_actualizar["segundo_apellido"] = campos["segundo_apellido"].get()
-        if campos["fecha_nacimiento"].get(): 
-            fecha = campos["fecha_nacimiento"].get()
-            if len(fecha) != 10 or fecha[4] != '-' or fecha[7] != '-':
-                mostrar_resultado(ventana, {"error": "❌ Formato de fecha debe ser YYYY-MM-DD", "status": "error"})
-                return
-            datos_actualizar["fecha_nacimiento"] = fecha
-        if campos["genero"].get(): 
-            datos_actualizar["genero"] = campos["genero"].get().replace("👦 ", "").replace("👧 ", "")
-        if campos["direccion"].get(): 
-            datos_actualizar["direccion"] = campos["direccion"].get()
-        if campos["telefono"].get(): 
-            telefono = campos["telefono"].get()
-            if len(telefono) != 11 or not telefono.isdigit():
-                mostrar_resultado(ventana, {"error": "❌ El teléfono debe tener exactamente 11 dígitos", "status": "error"})
-                return
-            datos_actualizar["telefono"] = telefono
-        
-        if not datos_actualizar:
-            mostrar_resultado(ventana, {"error": "❌ No hay datos para actualizar", "status": "error"})
+
+        data = self._obtener_datos_formulario()
+        data['id'] = self.nna_id_cargado
+        self.controller.handle_actualizar_nna(data)
+            
+    def _handle_eliminar_nna(self):
+        if not self.nna_id_cargado:
+            self.display_message("❌ Primero debe buscar y cargar un NNA para eliminarlo.", is_success=False)
             return
             
-        # ✅ CORREGIDO: Usar la instancia del controlador
-        resultado = nna_controller.actualizar(id_nna, **datos_actualizar)
-        mostrar_resultado(ventana, resultado)
-
-    button_frame = CTkFrame(ventana, fg_color="transparent")
-    button_frame.grid(row=1, column=0, columnspan=2, pady=25)
-    btn_actualizar = CTkButton(button_frame, text="✏️ ACTUALIZAR", command=ejecutar_actualizar,
-                              height=55, font=("Arial", 18, "bold"), fg_color="#f0b400", hover_color="#c79500")
-    btn_actualizar.pack(padx=15, pady=15)
-
-def vista_eliminar():
-    ventana = CTkToplevel()
-    ventana.geometry("800x500")
-    ventana.title("🗑️ Eliminar NNA")
-    ventana.configure(fg_color="#1e1e1e")
-
-    frame_principal = CTkFrame(ventana, fg_color="#2e2e2e")
-    frame_principal.pack(expand=True, fill="both", padx=40, pady=40)
-
-    CTkLabel(frame_principal, text="🗑️ ELIMINAR NNA", 
-             font=("Arial", 24, "bold")).pack(pady=10)
-
-    CTkLabel(frame_principal, text="🔢 ID del NNA a eliminar:", 
-             font=("Arial", 18)).pack(pady=20)
+        nombre = f"{self.p_nombre_var.get()} {self.p_apellido_var.get()}"
+        if messagebox.askyesno("⚠️ Confirmación", f"¿Está seguro de que desea eliminar a {nombre} (ID: {self.nna_id_cargado})?"):
+            self.controller.handle_eliminar_nna(self.nna_id_cargado)
     
-    entry_id = CTkEntry(frame_principal, height=50, font=("Arial", 16))
-    entry_id.pack(pady=20, padx=50, fill="x")
+    # ----------------------------------------------------------------------
+    # Métodos de Mutación de Vista (Llamados por el Controlador)
+    # ----------------------------------------------------------------------
 
-    def ejecutar_eliminar():
-        id_nna = entry_id.get()
-        if not id_nna:
-            mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
-            return
-        
-        confirmacion = CTkToplevel(ventana)
-        confirmacion.title("⚠️ Confirmar Eliminación")
-        confirmacion.geometry("500x300")
-        confirmacion.configure(fg_color="#1e1e1e")
-        
-        CTkLabel(confirmacion, text=f"¿Está seguro de eliminar el NNA con ID {id_nna}?", 
-                font=("Arial", 16), wraplength=400).pack(pady=40)
-        
-        def confirmar():
-            # ✅ CORREGIDO: Usar la instancia del controlador
-            resultado = nna_controller.eliminar(id_nna)
-            mostrar_resultado(ventana, resultado)
-            confirmacion.destroy()
-        
-        frame_botones = CTkFrame(confirmacion, fg_color="transparent")
-        frame_botones.pack(pady=10)
-        
-        CTkButton(frame_botones, text="✅ Sí, Eliminar", command=confirmar, 
-                 fg_color="#e74c3c", hover_color="#c0392b", height=45, font=("Arial", 16)).pack(side="left", padx=20)
-        CTkButton(frame_botones, text="❌ Cancelar", command=confirmacion.destroy,
-                 height=45, font=("Arial", 16)).pack(side="right", padx=20)
+    def limpiar_entradas(self, clean_search=True): 
+        """Limpia todos los campos del formulario."""
+        if clean_search: self.buscar_id_var.set("")
+        self.doc_id_var.set("")
+        self.p_nombre_var.set("")
+        self.s_nombre_var.set("")
+        self.p_apellido_var.set("")
+        self.s_apellido_var.set("")
+        self.f_nacimiento_var.set(datetime.date.today().isoformat())
+        # Mantener el primer género seleccionado o limpiar
+        if self.genero_combo.cget("values"):
+             self.genero_var.set(self.genero_combo.cget("values")[0])
+        else:
+             self.genero_var.set("")
+             
+        self.telefono_var.set("")
+        self.direccion_var.set("")
+        self.nna_id_cargado = None
+        self._set_btn_state("disabled")
+        self.display_message("")
 
-    btn_eliminar = CTkButton(frame_principal, text="🗑️ ELIMINAR NNA", command=ejecutar_eliminar,
-                            height=55, font=("Arial", 18, "bold"), fg_color="#e74c3c", hover_color="#c0392b")
-    btn_eliminar.pack(pady=10)
-
-if __name__ == "__main__":
-    main()
+    def _obtener_datos_formulario(self): 
+        """Recolecta los datos de los campos de entrada."""
+        return {
+            "primer_nombre": self.p_nombre_var.get().strip(),
+            "segundo_nombre": self.s_nombre_var.get().strip() or None,
+            "primer_apellido": self.p_apellido_var.get().strip(),
+            "segundo_apellido": self.s_apellido_var.get().strip() or None,
+            "documento_identidad": self.doc_id_var.get().strip() or None,
+            "fecha_nacimiento": self.f_nacimiento_var.get().strip(),
+            "genero": self.genero_var.get(),
+            "direccion": self.direccion_var.get().strip(),
+            "telefono": self.telefono_var.get().strip()
+        }
+        
+    def _establecer_datos_formulario(self, data: dict): 
+        """Establece los valores en los campos de entrada y habilita botones."""
+        self.p_nombre_var.set(data.get("primer_nombre", ""))
+        self.s_nombre_var.set(data.get("segundo_nombre", "") or "")
+        self.p_apellido_var.set(data.get("primer_apellido", ""))
+        self.s_apellido_var.set(data.get("segundo_apellido", "") or "")
+        self.doc_id_var.set(data.get("documento_identidad", "") or "")
+        self.f_nacimiento_var.set(data.get("fecha_nacimiento", datetime.date.today().isoformat()))
+        self.genero_var.set(data.get("genero", ""))
+        self.telefono_var.set(data.get("telefono", ""))
+        self.direccion_var.set(data.get("direccion", ""))
+        
+        self.nna_id_cargado = data.get("id")
+        self.buscar_id_var.set(str(data.get("id", "")))
+        self._set_btn_state("normal")
+        
+    def _cargar_generos(self, generos: List[str]):
+        """Carga las opciones en el ComboBox de Género."""
+        if generos:
+            self.genero_combo.configure(values=generos)
+            self.genero_var.set(generos[0]) # Seleccionar el primero por defecto
+        
+    def _set_btn_state(self, state):
+        """Habilita o deshabilita los botones de Modificar/Eliminar."""
+        self.btn_modificar.configure(state=state)
+        self.btn_eliminar.configure(state=state)
+        
+    def display_message(self, message: str, is_success: bool = True):
+        """Muestra un mensaje de estado en la interfaz."""
+        color = "#2ecc71" if is_success else "#e74c3c"
+        self.message_label.configure(text=message, text_color=color)

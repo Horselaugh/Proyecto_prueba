@@ -1,451 +1,298 @@
-from customtkinter import *
+import customtkinter as ctk
+from tkinter import messagebox, N, S, E, W
+from typing import Dict, List, Optional
 import sys
 import os
 
-# Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from controllers.familiar_controller import crear, leer, actualizar, eliminar
-
-def mostrar_resultado(ventana, resultado):
+# ----------------------------------------------------------------------
+# MOCK DE MODELO (TEMPORAL)
+# ----------------------------------------------------------------------
+class MockFamiliarModelo:
+    # Simula una lista de familiares (para listado inicial, si aplica)
+    def obtener_familiares(self, **kwargs):
+        return [
+            {"id": 1, "primer_nombre": "Juan", "primer_apellido": "Pérez", "parentesco_id": 1, "parentesco_desc": "Padre"},
+            {"id": 2, "primer_nombre": "María", "primer_apellido": "Gómez", "parentesco_id": 2, "parentesco_desc": "Madre"},
+        ]
     
+    def obtener_parentescos(self):
+        return [{"id": 1, "nombre": "Padre"}, {"id": 2, "nombre": "Madre"}, {"id": 3, "nombre": "Abuelo"}]
+
+    def buscar_familiar(self, termino):
+        if termino == "1":
+            return {"id": 1, "primer_nombre": "Juan", "primer_apellido": "Pérez", 
+                    "parentesco_id": 1, "parentesco_desc": "Padre", 
+                    "direccion": "Calle Falsa 123", "telefono": "555-1234", 
+                    "segundo_nombre": None, "segundo_apellido": "Sánchez", "tutor": True}
+        return None
+
+    def crear_familiar(self, **kwargs):
+        # Simula éxito
+        return {"id": 3, "message": "Familiar creado."}
+
+    def actualizar_familiar(self, id, **kwargs):
+        return {"id": id, "message": "Familiar actualizado."}
+
+    def eliminar_familiar(self, id):
+        return {"id": id, "message": "Familiar eliminado."}
+
+# ----------------------------------------------------------------------
+# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
+# ----------------------------------------------------------------------
+# Este mock solo necesita los métodos que la vista llama directamente y la estructura MVC.
+class FamiliarControlador:
     def __init__(self):
-        self.app = CTk()
-    # Centrar la ventana en la pantalla
-        self.center_window()
-    
-    ventana_resultado = CTkToplevel(ventana)
-    ventana_resultado.geometry("800x600")
-    ventana_resultado.title("📋 Resultado de la Operación")
-    ventana_resultado.configure(fg_color="#2e2e2e")
+        self.modelo = MockFamiliarModelo() 
+        self.vista = None
+        # print("ADVERTENCIA: Usando Mock FamiliarControlador.")
 
-    texto = CTkTextbox(ventana_resultado, wrap="word", font=("Arial", 12))
-    texto.pack(fill="both", expand=True, padx=20, pady=20)
-    
-    if resultado.get("status") == "success":
-        texto.insert("1.0", "✅ Operación exitosa:\n\n")
-        if "message" in resultado:
-            texto.insert("end", f"📝 {resultado['message']}\n\n")
-        if "data" in resultado:
-            texto.insert("end", "📊 Datos:\n")
-            for row in resultado["data"]:
-                texto.insert("end", f"• {str(row)}\n")
-    else:
-        texto.insert("1.0", "❌ Error:\n\n")
-        texto.insert("end", f"⚠️ {resultado.get('error', 'Error desconocido')}")
-    
-    texto.configure(state="disabled")
-
-def main():
-    # Crear ventana principal
-    ventana = CTk()
-    ventana.geometry("1000x700")
-    ventana.title("👨‍👩‍👧‍👦 Gestión de Familiares")
-    ventana.configure(fg_color="#2e2e2e")
-
-    # Frame principal
-    main_frame = CTkFrame(ventana, fg_color="transparent")
-    main_frame.pack(expand=True, fill="both", padx=40, pady=40)
-
-    # Título
-    title_label = CTkLabel(
-        main_frame, 
-        text="👨‍👩‍👧‍👦 GESTIÓN DE FAMILIARES", 
-        font=("Arial", 28, "bold"),
-        text_color="#3498db"
-    )
-    title_label.pack(pady=(0, 30))
-
-    # Frame para botones
-    buttons_frame = CTkFrame(main_frame, fg_color="transparent")
-    buttons_frame.pack(expand=True)
-
-    # Botones de acción con diseño mejorado
-    acciones = [
-        ("➕ Crear Familiar", "Agregar nuevo familiar al sistema", vista_crear, "#27ae60"),
-        ("🔍 Buscar Familiar", "Buscar familiar existente", vista_leer, "#2980b9"),
-        ("✏️ Actualizar Familiar", "Modificar datos de familiar", vista_actualizar, "#f39c12"),
-        ("🗑️ Eliminar Familiar", "Eliminar familiar del sistema", vista_eliminar, "#e74c3c")
-    ]
-
-    for i, (texto, descripcion, comando, color) in enumerate(acciones):
-        btn_frame = CTkFrame(buttons_frame, fg_color="transparent")
-        btn_frame.pack(pady=15, fill="x", padx=100)
+    def set_view(self, view_instance):
+        self.vista = view_instance
         
-        btn = CTkButton(
-            btn_frame,
-            text=f"{texto}\n{descripcion}",
-            command=comando,
-            height=70,
-            font=("Arial", 16, "bold"),
-            fg_color=color,
-            hover_color=color,
-            text_color="white",
-            corner_radius=15
-        )
-        btn.pack(fill="x")
+    def load_initial_data(self):
+        parentescos = self.modelo.obtener_parentescos()
+        self.vista._cargar_parentescos(parentescos)
+        self.vista.display_message("Listo para gestionar Familiares. Use la tabla o el formulario. 🏠", is_success=True)
 
-    # Botón de salir
-    exit_frame = CTkFrame(main_frame, fg_color="transparent")
-    exit_frame.pack(side="bottom", pady=20)
-    
-    btn_salir = CTkButton(
-        exit_frame,
-        text="🚪 Salir",
-        command=ventana.destroy,
-        height=50,
-        font=("Arial", 14),
-        fg_color="#7f8c8d",
-        hover_color="#95a5a6"
-    )
-    btn_salir.pack()
-
-    ventana.mainloop()
-
-def vista_crear():
-    ventana = CTkToplevel()
-    ventana.geometry("900x700")
-    ventana.title("➕ Crear Nuevo Familiar")
-    ventana.configure(fg_color="#2e2e2e")
-
-    # Frame principal con scroll
-    main_frame = CTkScrollableFrame(ventana)
-    main_frame.pack(fill="both", expand=True, padx=20, pady=20)
-
-    # Título
-    title_label = CTkLabel(
-        main_frame,
-        text="➕ CREAR NUEVO FAMILIAR",
-        font=("Arial", 24, "bold"),
-        text_color="#27ae60"
-    )
-    title_label.grid(row=0, column=0, columnspan=2, pady=(0, 30))
-
-    # Campos de entrada
-    campos = {
-        "primer_nombre": CTkEntry(main_frame, placeholder_text="Ej: María", height=40, font=("Arial", 14)),
-        "segundo_nombre": CTkEntry(main_frame, placeholder_text="Ej: José", height=40, font=("Arial", 14)),
-        "primer_apellido": CTkEntry(main_frame, placeholder_text="Ej: González", height=40, font=("Arial", 14)),
-        "segundo_apellido": CTkEntry(main_frame, placeholder_text="Ej: Pérez", height=40, font=("Arial", 14)),
-        "direccion": CTkEntry(main_frame, placeholder_text="Ej: Av. Principal #123", height=40, font=("Arial", 14)),
-        "telefono": CTkEntry(main_frame, placeholder_text="04141234567 (11 dígitos)", height=40, font=("Arial", 14)),
-        "tutor": CTkCheckBox(main_frame, text="👨‍🏫 ¿Es tutor?", font=("Arial", 14))
-    }
-
-    labels = [
-        ("👤 Primer nombre*:", campos["primer_nombre"]),
-        ("👤 Segundo nombre:", campos["segundo_nombre"]),
-        ("👤 Primer apellido*:", campos["primer_apellido"]),
-        ("👤 Segundo apellido:", campos["segundo_apellido"]),
-        ("🏠 Dirección*:", campos["direccion"]),
-        ("📞 Teléfono* (11 dígitos):", campos["telefono"]),
-        ("", campos["tutor"])
-    ]
-
-    for i, (label_text, entry) in enumerate(labels, start=1):
-        if label_text:
-            CTkLabel(main_frame, text=label_text, font=("Arial", 14)).grid(row=i, column=0, padx=20, pady=15, sticky="e")
-        entry.grid(row=i, column=1, padx=20, pady=15, sticky="ew")
-
-    def ejecutar_crear():
-        # Validaciones
-        if not campos["primer_nombre"].get() or not campos["primer_apellido"].get():
-            mostrar_resultado(ventana, {"error": "❌ Primer nombre y primer apellido son obligatorios", "status": "error"})
-            return
-        
-        telefono = campos["telefono"].get()
-        if telefono and (len(telefono) != 11 or not telefono.isdigit()):
-            mostrar_resultado(ventana, {"error": "❌ El teléfono debe tener exactamente 11 dígitos", "status": "error"})
-            return
-
-        resultado = crear(
-            primer_nombre=campos["primer_nombre"].get(),
-            primer_apellido=campos["primer_apellido"].get(),
-            parentesco_id=1,
-            direccion=campos["direccion"].get(),
-            telefono=telefono,
-            segundo_nombre=campos["segundo_nombre"].get() or None,
-            segundo_apellido=campos["segundo_apellido"].get() or None,
-            tutor=campos["tutor"].get()
-        )
-        mostrar_resultado(ventana, resultado)
-
-    # Frame para botones
-    button_frame = CTkFrame(main_frame, fg_color="transparent")
-    button_frame.grid(row=8, column=0, columnspan=2, pady=10)
-
-    btn_crear = CTkButton(
-        button_frame,
-        text="💾 GUARDAR FAMILIAR",
-        command=ejecutar_crear,
-        height=50,
-        font=("Arial", 16, "bold"),
-        fg_color="#27ae60",
-        hover_color="#219a52"
-    )
-    btn_crear.pack(pady=10)
-
-    main_frame.grid_columnconfigure(1, weight=1)
-
-def vista_leer():
-    ventana = CTkToplevel()
-    ventana.geometry("900x700")
-    ventana.title("🔍 Buscar Familiar")
-    ventana.configure(fg_color="#2e2e2e")
-    ventana.grid_columnconfigure(0, weight=1)
-
-    main_frame = CTkFrame(ventana, fg_color="transparent")
-    main_frame.grid(row=0, column=0, sticky="nsew", padx=30, pady=10)
-    main_frame.grid_columnconfigure(0, weight=1)
-
-    # Título
-    title_label = CTkLabel(
-        main_frame,
-        text="🔍 BUSCAR FAMILIAR",
-        font=("Arial", 24, "bold"),
-        text_color="#2980b9"
-    )
-    title_label.grid(row=0, column=0, pady=(0, 30))
-
-    # Opciones de búsqueda
-    CTkLabel(main_frame, text="🔎 Buscar por:", font=("Arial", 16, "bold")).grid(row=1, column=0, sticky="w", pady=10)
-    
-    opcion_busqueda = StringVar(value="nombre")
-    frame_opciones = CTkFrame(main_frame)
-    frame_opciones.grid(row=2, column=0, sticky="ew", pady=10)
-    
-    CTkRadioButton(frame_opciones, text="👤 Nombre y Apellido", variable=opcion_busqueda, value="nombre", font=("Arial", 14)).pack(side="left", padx=20, pady=10)
-    CTkRadioButton(frame_opciones, text="🆔 ID del Familiar", variable=opcion_busqueda, value="id", font=("Arial", 14)).pack(side="left", padx=20, pady=10)
-
-    # Frame para campos de búsqueda
-    frame_campos = CTkFrame(main_frame)
-    frame_campos.grid(row=3, column=0, sticky="nsew", pady=20)
-    frame_campos.grid_columnconfigure(1, weight=1)
-
-    current_entries = {}
-    
-    def mostrar_campos():
-        for widget in frame_campos.winfo_children():
-            widget.destroy()
-        
-        if opcion_busqueda.get() == "nombre":
-            CTkLabel(frame_campos, text="👤 Primer nombre:", font=("Arial", 14)).grid(row=0, column=0, padx=20, pady=15, sticky="e")
-            entry_nombre = CTkEntry(frame_campos, height=40, font=("Arial", 14))
-            entry_nombre.grid(row=0, column=1, padx=20, pady=15, sticky="ew")
-            
-            CTkLabel(frame_campos, text="👤 Primer apellido:", font=("Arial", 14)).grid(row=1, column=0, padx=20, pady=15, sticky="e")
-            entry_apellido = CTkEntry(frame_campos, height=40, font=("Arial", 14))
-            entry_apellido.grid(row=1, column=1, padx=20, pady=15, sticky="ew")
-            
-            current_entries["primer_nombre"] = entry_nombre
-            current_entries["primer_apellido"] = entry_apellido
+    # Delegación de manejo de eventos al controlador (métodos dummy para el mock)
+    def handle_crear_familiar(self, *args): self.vista.display_message("Mock: Crear Familiar", True)
+    def handle_buscar_familiar(self, *args): 
+        resultado = self.modelo.buscar_familiar("1")
+        if resultado:
+            self.vista._establecer_datos_formulario(resultado)
+            self.vista.display_message("Mock: Familiar cargado (ID 1)", True)
         else:
-            CTkLabel(frame_campos, text="🆔 ID del Familiar:", font=("Arial", 14)).grid(row=0, column=0, padx=20, pady=15, sticky="e")
-            entry_id = CTkEntry(frame_campos, height=40, font=("Arial", 14))
-            entry_id.grid(row=0, column=1, padx=20, pady=15, sticky="ew")
-            current_entries["id"] = entry_id
-    
-    opcion_busqueda.trace_add("write", lambda *args: mostrar_campos())
-    mostrar_campos()
-
-    def ejecutar_leer():
-        if opcion_busqueda.get() == "nombre":
-            nombre = current_entries["primer_nombre"].get() if "primer_nombre" in current_entries else ""
-            apellido = current_entries["primer_apellido"].get() if "primer_apellido" in current_entries else ""
-            if not nombre or not apellido:
-                mostrar_resultado(ventana, {"error": "❌ Debe ingresar nombre y apellido", "status": "error"})
-                return
-            resultado = leer(primer_nombre=nombre, primer_apellido=apellido)
+            self.vista.display_message("Mock: Familiar no encontrado", False)
+            self.vista.limpiar_entradas()
+    def handle_actualizar_familiar(self, *args): self.vista.display_message("Mock: Actualizar Familiar", True)
+    def handle_eliminar_familiar(self, *args): self.vista.display_message("Mock: Eliminar Familiar", True)
+    def handle_cargar_familiar_por_id(self, familiar_id):
+        resultado = self.modelo.buscar_familiar(str(familiar_id))
+        if resultado:
+            self.vista._establecer_datos_formulario(resultado)
         else:
-            id_familiar = current_entries["id"].get() if "id" in current_entries else ""
-            if not id_familiar:
-                mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
-                return
-            resultado = leer(id=id_familiar)
-        
-        mostrar_resultado(ventana, resultado)
+            self.vista.display_message("Mock: Error al cargar familiar.", False)
 
-    frame_boton = CTkFrame(main_frame, fg_color="transparent")
-    frame_boton.grid(row=4, column=0, sticky="e", pady=20)
+
+# ----------------------------------------------------------------------
+# CLASE DE VISTA ADAPTADA
+# ----------------------------------------------------------------------
+
+class FamiliarViewFrame(ctk.CTkFrame):
+    """
+    Vista para el módulo de gestión de Familiares. 
+    Hereda de CTkFrame para ser cargado en el panel de contenido de MenuApp.
+    """
     
-    btn_leer = CTkButton(
-        frame_boton,
-        text="🔍 EJECUTAR BÚSQUEDA",
-        command=ejecutar_leer,
-        height=50,
-        font=("Arial", 16, "bold"),
-        fg_color="#2980b9",
-        hover_color="#2471a3"
-    )
-    btn_leer.pack()
+    def __init__(self, master, controller: FamiliarControlador):
+        super().__init__(master, corner_radius=0, fg_color="transparent") 
+        
+        self.controller = controller 
+        self.controller.set_view(self) # Registrar la vista en el controlador
+        
+        self.familiar_id_cargado: Optional[int] = None
+        self.parentescos_map: Dict[str, int] = {} # Mapeo Nombre -> ID
+        
+        # Variables de control
+        self.nombre_var = ctk.StringVar(self)
+        self.apellido_var = ctk.StringVar(self)
+        self.parentesco_var = ctk.StringVar(self)
+        self.telefono_var = ctk.StringVar(self)
+        self.direccion_var = ctk.StringVar(self)
+        self.tutor_var = ctk.BooleanVar(self)
+        
+        # Variables de búsqueda
+        self.buscar_id_var = ctk.StringVar(self)
+        
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1) # Fila 2 para la tabla (si existiera) o el contenido
+        
+        self._configurar_interfaz()
 
-    ventana.grid_rowconfigure(0, weight=1)
+    # MÉTODO CLAVE: Requerido por la estructura de menu.py
+    def show(self):
+        """Llamado por MenuApp, invoca la carga de datos iniciales del controlador."""
+        self.controller.load_initial_data() 
+        # Cargar datos de la tabla si existiera una tabla (Treeview)
 
-def vista_actualizar():
-    ventana = CTkToplevel()
-    ventana.geometry("900x800")
-    ventana.title("✏️ Actualizar Familiar")
-    ventana.configure(fg_color="#2e2e2e")
+    def _configurar_interfaz(self):
+        """Configura la interfaz gráfica (Diseño General CRUD)."""
+        
+        # Título y Mensaje
+        self.title_label = ctk.CTkLabel(self, text="🏠 GESTIÓN DE FAMILIARES", 
+                                        font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.grid(row=0, column=0, pady=(20, 10), padx=20, sticky="ew")
+
+        self.message_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=14), text_color="yellow")
+        self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
+
+        # Contenedor principal para el formulario
+        main_frame = ctk.CTkFrame(self, fg_color="#3c3c3c", corner_radius=10)
+        main_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        main_frame.columnconfigure(0, weight=1)
+        
+        # Sección de Búsqueda
+        search_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        search_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        search_frame.columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(search_frame, text="Buscar Familiar (ID)", font=("Arial", 14)).grid(row=0, column=0, sticky="w", padx=10, pady=(0, 5))
+        
+        search_entry = ctk.CTkEntry(search_frame, textvariable=self.buscar_id_var, placeholder_text="ID del Familiar...", height=40)
+        search_entry.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
+        
+        ctk.CTkButton(search_frame, text="🔍 Buscar y Cargar", command=self._handle_buscar_familiar, height=40,
+                      fg_color="#3498db", hover_color="#2980b9").grid(row=1, column=1, padx=(10, 0), pady=(0, 10))
+
+        # Separador
+        ctk.CTkFrame(main_frame, height=2, fg_color="#555555").grid(row=1, column=0, sticky="ew", padx=20)
+        
+        # Sección de Formulario (GRID dentro de main_frame)
+        form_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        form_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        form_frame.columnconfigure((0, 1), weight=1)
+        
+        # Fila 0: Nombre y Apellido
+        self._add_field(form_frame, 0, "Primer Nombre:", self.nombre_var)
+        self._add_field(form_frame, 1, "Primer Apellido:", self.apellido_var)
+        
+        # Fila 2: Teléfono y Parentesco
+        self._add_field(form_frame, 2, "Teléfono:", self.telefono_var)
+
+        # Dropdown para Parentesco
+        ctk.CTkLabel(form_frame, text="Parentesco:", font=("Arial", 14)).grid(row=2, column=1, sticky="w", padx=10, pady=(10, 5))
+        self.parentesco_dropdown = ctk.CTkComboBox(form_frame, variable=self.parentesco_var, values=["Cargando..."], height=40)
+        self.parentesco_dropdown.grid(row=3, column=1, sticky="ew", padx=10, pady=(0, 5))
+
+        # Fila 4: Dirección (ocupa 2 columnas)
+        ctk.CTkLabel(form_frame, text="Dirección:", font=("Arial", 14)).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+        self.direccion_entry = ctk.CTkEntry(form_frame, textvariable=self.direccion_var, height=40)
+        self.direccion_entry.grid(row=5, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
+
+        # Fila 6: Checkbox Tutor
+        ctk.CTkCheckBox(form_frame, text="¿Es Tutor Legal?", variable=self.tutor_var, 
+                        font=("Arial", 14)).grid(row=6, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 10))
+
+
+        # Frame de Botones
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="ew")
+        
+        # Botones (Delegación de eventos al controlador a través de métodos de la vista)
+        ctk.CTkButton(button_frame, text="➕ Crear Familiar", command=self._handle_crear_familiar, height=45, 
+                      fg_color="#2ecc71", hover_color="#27ae60", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
+        
+        self.btn_modificar = ctk.CTkButton(button_frame, text="✏️ Modificar", command=self._handle_actualizar_familiar, height=45, 
+                      fg_color="#f39c12", hover_color="#e67e22", font=ctk.CTkFont(size=16, weight="bold"), state="disabled")
+        self.btn_modificar.pack(side="left", expand=True, fill="x", padx=5)
+        
+        self.btn_eliminar = ctk.CTkButton(button_frame, text="🗑️ Eliminar", command=self._handle_eliminar_familiar, height=45, 
+                      fg_color="#e74c3c", hover_color="#c0392b", font=ctk.CTkFont(size=16, weight="bold"), state="disabled")
+        self.btn_eliminar.pack(side="left", expand=True, fill="x", padx=5)
+        
+        ctk.CTkButton(button_frame, text="🧹 Limpiar", command=self.limpiar_entradas, height=45, 
+                      fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
+
+    def _add_field(self, parent, column, label_text, var):
+        """Función auxiliar para añadir etiquetas y campos de entrada."""
+        row = 2 * column # Fila para etiqueta
+        ctk.CTkLabel(parent, text=label_text, font=("Arial", 14)).grid(row=row, column=column, sticky="w", padx=10, pady=(10, 5))
+        ctk.CTkEntry(parent, textvariable=var, height=40).grid(row=row + 1, column=column, sticky="ew", padx=10, pady=(0, 5))
+
+
+    # ----------------------------------------------------------------------
+    # Métodos de Eventos (Delegación al Controlador)
+    # ----------------------------------------------------------------------
     
-    main_frame = CTkScrollableFrame(ventana)
-    main_frame.pack(fill="both", expand=True, padx=20, pady=20)
-    main_frame.grid_columnconfigure(1, weight=1)
+    def _handle_crear_familiar(self):
+        data = self._obtener_datos_formulario()
+        self.controller.handle_crear_familiar(data)
+            
+    def _handle_buscar_familiar(self):
+        termino = self.buscar_id_var.get().strip()
+        if termino.isdigit():
+            self.controller.handle_cargar_familiar_por_id(int(termino))
+        else:
+            self.display_message("❌ Ingrese un ID numérico para buscar.", is_success=False)
+            self.limpiar_entradas(clean_search=False)
 
-    # Título
-    title_label = CTkLabel(
-        main_frame,
-        text="✏️ ACTUALIZAR FAMILIAR",
-        font=("Arial", 24, "bold"),
-        text_color="#f39c12"
-    )
-    title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
-
-    # Campo ID obligatorio
-    CTkLabel(main_frame, text="🆔 ID del Familiar a actualizar:", font=("Arial", 14, "bold")).grid(row=1, column=0, padx=20, pady=15, sticky="e")
-    entry_id = CTkEntry(main_frame, height=40, font=("Arial", 14))
-    entry_id.grid(row=1, column=1, padx=20, pady=15, sticky="ew")
-
-    CTkLabel(main_frame, text="📝 Complete solo los campos a actualizar:", font=("Arial", 14)).grid(row=2, column=0, columnspan=2, pady=20)
-
-    # Campos opcionales para actualización
-    campos = {
-        "primer_nombre": CTkEntry(main_frame, placeholder_text="Nuevo primer nombre", height=40, font=("Arial", 14)),
-        "segundo_nombre": CTkEntry(main_frame, placeholder_text="Nuevo segundo nombre", height=40, font=("Arial", 14)),
-        "primer_apellido": CTkEntry(main_frame, placeholder_text="Nuevo primer apellido", height=40, font=("Arial", 14)),
-        "segundo_apellido": CTkEntry(main_frame, placeholder_text="Nuevo segundo apellido", height=40, font=("Arial", 14)),
-        "direccion": CTkEntry(main_frame, placeholder_text="Nueva dirección", height=40, font=("Arial", 14)),
-        "telefono": CTkEntry(main_frame, placeholder_text="Nuevo teléfono (11 dígitos)", height=40, font=("Arial", 14)),
-        "tutor": CTkCheckBox(main_frame, text="👨‍🏫 ¿Es tutor?", font=("Arial", 14))
-    }
-
-    labels = [
-        ("👤 Nuevo primer nombre:", campos["primer_nombre"]),
-        ("👤 Nuevo segundo nombre:", campos["segundo_nombre"]),
-        ("👤 Nuevo primer apellido:", campos["primer_apellido"]),
-        ("👤 Nuevo segundo apellido:", campos["segundo_apellido"]),
-        ("🏠 Nueva dirección:", campos["direccion"]),
-        ("📞 Nuevo teléfono:", campos["telefono"]),
-        ("", campos["tutor"])
-    ]
-
-    for i, (label_text, entry) in enumerate(labels, start=3):
-        if label_text:
-            CTkLabel(main_frame, text=label_text, font=("Arial", 14)).grid(row=i, column=0, padx=20, pady=12, sticky="e")
-        entry.grid(row=i, column=1, padx=20, pady=12, sticky="ew")
-
-    def ejecutar_actualizar():
-        id_familiar = entry_id.get()
-        if not id_familiar:
-            mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
+            
+    def _handle_actualizar_familiar(self):
+        if not self.familiar_id_cargado:
+            self.display_message("❌ Primero debe buscar y cargar un familiar para modificarlo.", is_success=False)
             return
-        
-        # Validar teléfono si se proporciona
-        telefono = campos["telefono"].get()
-        if telefono and (len(telefono) != 11 or not telefono.isdigit()):
-            mostrar_resultado(ventana, {"error": "❌ El teléfono debe tener exactamente 11 dígitos", "status": "error"})
-            return
-        
-        datos_actualizar = {}
-        if campos["primer_nombre"].get(): datos_actualizar["primer_nombre"] = campos["primer_nombre"].get()
-        if campos["segundo_nombre"].get(): datos_actualizar["segundo_nombre"] = campos["segundo_nombre"].get()
-        if campos["primer_apellido"].get(): datos_actualizar["primer_apellido"] = campos["primer_apellido"].get()
-        if campos["segundo_apellido"].get(): datos_actualizar["segundo_apellido"] = campos["segundo_apellido"].get()
-        if campos["direccion"].get(): datos_actualizar["direccion"] = campos["direccion"].get()
-        if telefono: datos_actualizar["telefono"] = telefono
-        
-        # Para el checkbox, siempre enviar el valor
-        datos_actualizar["tutor"] = campos["tutor"].get()
-        
-        if not datos_actualizar:
-            mostrar_resultado(ventana, {"error": "❌ No hay datos para actualizar", "status": "error"})
+
+        data = self._obtener_datos_formulario()
+        data['id'] = self.familiar_id_cargado
+        self.controller.handle_actualizar_familiar(data)
+            
+    def _handle_eliminar_familiar(self):
+        if not self.familiar_id_cargado:
+            self.display_message("❌ Primero debe buscar y cargar un familiar para eliminarlo.", is_success=False)
             return
             
-        resultado = actualizar(id_familiar, **datos_actualizar)
-        mostrar_resultado(ventana, resultado)
-
-    button_frame = CTkFrame(main_frame, fg_color="transparent")
-    button_frame.grid(row=10, column=0, columnspan=2, pady=10)
-
-    btn_actualizar = CTkButton(
-        button_frame,
-        text="💾 ACTUALIZAR FAMILIAR",
-        command=ejecutar_actualizar,
-        height=50,
-        font=("Arial", 16, "bold"),
-        fg_color="#f39c12",
-        hover_color="#e67e22"
-    )
-    btn_actualizar.pack()
-
-def vista_eliminar():
-    ventana = CTkToplevel()
-    ventana.geometry("600x400")
-    ventana.title("🗑️ Eliminar Familiar")
-    ventana.configure(fg_color="#2e2e2e")
-
-    main_frame = CTkFrame(ventana, fg_color="transparent")
-    main_frame.pack(expand=True, fill="both", padx=40, pady=40)
-
-    # Título
-    title_label = CTkLabel(
-        main_frame,
-        text="🗑️ ELIMINAR FAMILIAR",
-        font=("Arial", 24, "bold"),
-        text_color="#e74c3c"
-    )
-    title_label.pack(pady=(0, 30))
-
-    CTkLabel(main_frame, text="🆔 ID del Familiar a eliminar:", font=("Arial", 16)).pack(pady=15)
-    entry_id = CTkEntry(main_frame, height=45, font=("Arial", 14))
-    entry_id.pack(pady=15, fill="x")
-
-    def ejecutar_eliminar():
-        id_familiar = entry_id.get()
-        if not id_familiar:
-            mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
-            return
-        
-        confirmacion = CTkToplevel(ventana)
-        confirmacion.title("⚠️ Confirmar Eliminación")
-        confirmacion.geometry("500x300")
-        confirmacion.configure(fg_color="#2e2e2e")
-        
-        CTkLabel(confirmacion, text=f"¿Eliminar Familiar con ID {id_familiar}?", 
-                font=("Arial", 18, "bold")).pack(pady=40)
-        
-        def confirmar():
-            resultado = eliminar(id_familiar)
-            mostrar_resultado(ventana, resultado)
-            confirmacion.destroy()
-        
-        frame_botones = CTkFrame(confirmacion, fg_color="transparent")
-        frame_botones.pack(pady=10)
-        
-        CTkButton(frame_botones, text="✅ Sí, eliminar", command=confirmar, 
-                 fg_color="#e74c3c", hover_color="#c0392b", height=40,
-                 font=("Arial", 14)).pack(side="left", padx=20)
-        CTkButton(frame_botones, text="❌ Cancelar", command=confirmacion.destroy,
-                 fg_color="#7f8c8d", hover_color="#95a5a6", height=40,
-                 font=("Arial", 14)).pack(side="right", padx=20)
-
-    def center_window(self):
-        """Centrar la ventana en la pantalla"""
-        self.app.update_idletasks()
-        width = self.app.winfo_width()
-        height = self.app.winfo_height()
-        x = (self.app.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.app.winfo_screenheight() // 2) - (height // 2)
-        self.app.geometry(f'{width}x{height}+{x}+{y}')
+        if messagebox.askyesno("⚠️ Confirmación", "¿Está seguro de que desea eliminar este familiar?"):
+            self.controller.handle_eliminar_familiar(self.familiar_id_cargado)
     
-    btn_eliminar = CTkButton(
-        main_frame,
-        text="🗑️ ELIMINAR FAMILIAR",
-        command=ejecutar_eliminar,
-        height=50,
-        font=("Arial", 16, "bold"),
-        fg_color="#e74c3c",
-        hover_color="#c0392b"
-    )
-    btn_eliminar.pack(pady=20)
+    # ----------------------------------------------------------------------
+    # Métodos de Mutación de Vista (Llamados por el Controlador)
+    # ----------------------------------------------------------------------
 
-if __name__ == "__main__":
-    main()
+    def limpiar_entradas(self, clean_search=True): 
+        """Limpia todos los campos del formulario."""
+        if clean_search: self.buscar_id_var.set("")
+        self.nombre_var.set("")
+        self.apellido_var.set("")
+        self.parentesco_var.set("")
+        self.telefono_var.set("")
+        self.direccion_var.set("")
+        self.tutor_var.set(False)
+        self.familiar_id_cargado = None
+        self._set_btn_state("disabled")
+        self.display_message("") # Limpiar el mensaje de estado
+
+    def _obtener_datos_formulario(self): 
+        """Recolecta los datos de los campos de entrada."""
+        parentesco_nombre = self.parentesco_var.get()
+        parentesco_id = self.parentescos_map.get(parentesco_nombre)
+        
+        return {
+            "primer_nombre": self.nombre_var.get().strip(),
+            "primer_apellido": self.apellido_var.get().strip(),
+            "parentesco_id": parentesco_id,
+            "direccion": self.direccion_var.get().strip(),
+            "telefono": self.telefono_var.get().strip(),
+            "tutor": self.tutor_var.get()
+            # Los campos segundo_nombre y segundo_apellido se ignoran por simplicidad, se manejarían si existieran en la interfaz
+        }
+        
+    def _establecer_datos_formulario(self, data: dict): 
+        """Establece los valores en los campos de entrada y habilita botones."""
+        self.nombre_var.set(data.get("primer_nombre", ""))
+        self.apellido_var.set(data.get("primer_apellido", ""))
+        self.parentesco_var.set(data.get("parentesco_desc", "")) # Usa la descripción del parentesco
+        self.telefono_var.set(data.get("telefono", ""))
+        self.direccion_var.set(data.get("direccion", ""))
+        self.tutor_var.set(data.get("tutor", False))
+        
+        self.familiar_id_cargado = data.get("id")
+        self.buscar_id_var.set(str(data.get("id", ""))) # Carga el ID en el campo de búsqueda
+        self._set_btn_state("normal")
+        
+    def _cargar_parentescos(self, parentescos: List[Dict]):
+        """Carga las opciones en el ComboBox de parentescos."""
+        nombres = [p['nombre'] for p in parentescos]
+        self.parentescos_map = {p['nombre']: p['id'] for p in parentescos}
+        self.parentesco_dropdown.configure(values=nombres)
+        if nombres:
+             self.parentesco_var.set(nombres[0])
+        
+    def _set_btn_state(self, state):
+        """Habilita o deshabilita los botones de Modificar/Eliminar."""
+        self.btn_modificar.configure(state=state)
+        self.btn_eliminar.configure(state=state)
+        
+    def display_message(self, message: str, is_success: bool = True):
+        """Muestra un mensaje de estado en la interfaz."""
+        color = "#2ecc71" if is_success else "#e74c3c"
+        self.message_label.configure(text=message, text_color=color)

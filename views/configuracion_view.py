@@ -1,22 +1,214 @@
 import customtkinter as ctk
-import sys
-import os
-
+from tkinter import messagebox
+from typing import List, Dict, Any, Optional
+import random
 
 # ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL)
+# MOCK DE MODELO (TEMPORAL) - COMPLETO
 # ----------------------------------------------------------------------
 
-# 🔴 MOCK TEMPORAL: Necesario para que el Controlador pueda inicializar su propiedad 'modelo'
+# MOCK TEMPORAL: Asegura que el Controlador pueda inicializar su propiedad 'modelo'
+# e incluye todos los métodos CRUD necesarios para evitar AttributeErrors.
 class MockConfiguracionModelo:
-    def get_all_roles(self): return [{"id": 1, "nombre": "Admin", "descripcion": "Administrador"}]
-    def get_all_usuarios(self): return []
-    def handle_crear_rol(self, *args): return True
-    def handle_guardar_rol(self, *args): return True
-    def handle_eliminar_rol(self, *args): return True
-    def handle_crear_usuario(self, *args): return True
-    def handle_guardar_usuario(self, *args): return True
-    def handle_eliminar_usuario(self, *args): return True
+    # Simulación de datos en memoria para el mock
+    _ROLES = [
+        {"id": 1, "nombre": "Admin", "descripcion": "Administrador con control total"},
+        {"id": 2, "nombre": "Supervisor", "descripcion": "Puede aprobar y auditar"},
+        {"id": 3, "nombre": "Usuario", "descripcion": "Acceso básico para registro"}
+    ]
+    _USUARIOS = [
+        {"id": 101, "primer_nombre": "Juan", "apellido": "Perez", "documento": "12345678", "rol_id": 1, "rol_nombre": "Admin"},
+        {"id": 102, "primer_nombre": "Maria", "apellido": "Lopez", "documento": "87654321", "rol_id": 3, "rol_nombre": "Usuario"},
+    ]
+    
+    # ------------------
+    # ROLES
+    # ------------------
+    def get_all_roles(self) -> List[Dict[str, Any]]: 
+        """Retorna una lista simulada de roles."""
+        return self._ROLES
+
+    def handle_crear_rol(self, data: Dict[str, str]) -> bool: 
+        """Mock para crear un nuevo rol."""
+        new_id = max([r['id'] for r in self._ROLES], default=0) + 1
+        new_rol = {"id": new_id, "nombre": data['nombre'], "descripcion": data['descripcion']}
+        self._ROLES.append(new_rol)
+        return True
+
+    def handle_guardar_rol(self, data: Dict[str, Any]) -> bool: 
+        """Mock para actualizar un rol existente."""
+        for i, rol in enumerate(self._ROLES):
+            if rol['id'] == data['id']:
+                self._ROLES[i]['nombre'] = data['nombre']
+                self._ROLES[i]['descripcion'] = data['descripcion']
+                return True
+        return False
+        
+    def handle_eliminar_rol(self, rol_id: int) -> bool: 
+        """
+        Mock para eliminar un rol. 
+        Este es el método que faltaba y causaba el AttributeError.
+        """
+        self._ROLES[:] = [r for r in self._ROLES if r['id'] != rol_id]
+        return True
+
+    # ------------------
+    # USUARIOS
+    # ------------------
+    def get_all_usuarios(self) -> List[Dict[str, Any]]: 
+        """Retorna una lista simulada de usuarios."""
+        return self._USUARIOS
+        
+    def handle_crear_usuario(self, data: Dict[str, Any]) -> bool: 
+        """Mock para crear un nuevo usuario."""
+        new_id = max([u['id'] for u in self._USUARIOS], default=100) + 1
+        rol_info = self._get_rol_info(data['rol_id'])
+        new_user = {
+            "id": new_id, 
+            "primer_nombre": data['primer_nombre'], 
+            "apellido": data['apellido'], 
+            "documento": data['documento'], 
+            "rol_id": data['rol_id'],
+            "rol_nombre": rol_info['nombre']
+        }
+        self._USUARIOS.append(new_user)
+        return True
+        
+    def handle_guardar_usuario(self, data: Dict[str, Any]) -> bool: 
+        """Mock para actualizar un usuario existente."""
+        for i, user in enumerate(self._USUARIOS):
+            if user['id'] == data['id']:
+                rol_info = self._get_rol_info(data['rol_id'])
+                self._USUARIOS[i].update({
+                    "primer_nombre": data['primer_nombre'],
+                    "apellido": data['apellido'],
+                    "documento": data['documento'],
+                    "rol_id": data['rol_id'],
+                    "rol_nombre": rol_info['nombre']
+                })
+                return True
+        return False
+
+    def handle_eliminar_usuario(self, persona_id: int) -> bool: 
+        """Mock para eliminar un usuario."""
+        self._USUARIOS[:] = [u for u in self._USUARIOS if u['id'] != persona_id]
+        return True
+        
+    def _get_rol_info(self, rol_id: int) -> Dict[str, str]:
+        """Ayudante para obtener nombre de rol en el mock."""
+        for rol in self._ROLES:
+            if rol['id'] == rol_id:
+                return rol
+        return {"nombre": "Desconocido"}
+
+
+# Importamos el controlador (o su mock)
+try:
+    # Esto asume que tienes un controlador real, si no, usa el mock
+    from controllers.configuracion_controller import ConfiguracionControlador
+except ImportError:
+    # MOCK del Controlador si la importación real falla
+    class MockConfiguracionControlador:
+        """Controlador simple para probar la vista sin backend."""
+        def __init__(self):
+            # Usar el mock de modelo completo para evitar errores de Attribute
+            self.modelo = MockConfiguracionModelo()
+            self.vista: Optional['ConfiguracionViewFrame'] = None
+
+        def set_view(self, view_instance):
+            self.vista = view_instance
+
+        def get_rol_id_from_str(self, rol_str: str) -> Optional[int]:
+            """Extrae el ID numérico del rol desde la cadena (e.g., '1 - Admin')"""
+            try:
+                if rol_str and ' - ' in rol_str:
+                    return int(rol_str.split(' - ')[0])
+            except ValueError:
+                return None
+            return None
+
+        def get_all_roles(self):
+            return self.modelo.get_all_roles()
+
+        def load_initial_data(self):
+            """Carga los datos iniciales (roles y usuarios) en la vista."""
+            if self.vista:
+                roles = self.get_all_roles()
+                usuarios = self.modelo.get_all_usuarios()
+                self.vista._cargar_roles(roles)
+                self.vista._cargar_usuarios(usuarios)
+                self.vista.display_message("✅ Datos de Configuración cargados (Mock).", is_success=True)
+
+        def _validar_rol_data(self, data: Dict[str, str]) -> bool:
+            if not data.get('nombre') or not data.get('descripcion'):
+                self.vista.display_message("❌ Error: Nombre y descripción del rol son obligatorios.", is_success=False)
+                return False
+            return True
+
+        def handle_crear_rol(self, data: Dict[str, str]):
+            if not self._validar_rol_data(data): return
+            if self.modelo.handle_crear_rol(data):
+                self.vista.display_message(f"✅ Rol {data['nombre']} creado.", is_success=True)
+                self.vista._limpiar_campos_rol(clear_selection=True)
+                self.load_initial_data()
+            else:
+                self.vista.display_message(f"❌ Error al crear rol.", is_success=False)
+
+        def handle_guardar_rol(self, data: Dict[str, Any]):
+            if not self._validar_rol_data(data): return
+            if self.modelo.handle_guardar_rol(data):
+                self.vista.display_message(f"✅ Rol {data['nombre']} guardado.", is_success=True)
+                self.vista._limpiar_campos_rol(clear_selection=True)
+                self.load_initial_data()
+            else:
+                self.vista.display_message(f"❌ Error al guardar rol.", is_success=False)
+
+        def handle_eliminar_rol(self, rol_id: int, nombre_rol: str):
+            if self.modelo.handle_eliminar_rol(rol_id):
+                self.vista.display_message(f"🗑️ Rol {nombre_rol} eliminado.", is_success=True)
+                self.vista._limpiar_campos_rol(clear_selection=True)
+                self.load_initial_data()
+            else:
+                self.vista.display_message(f"❌ Error al eliminar rol.", is_success=False)
+        
+        # --- USUARIOS ---
+
+        def _validar_usuario_data(self, data: Dict[str, Any]) -> bool:
+            if not data.get('primer_nombre') or not data.get('documento'):
+                self.vista.display_message("❌ Error: Nombre y documento son obligatorios.", is_success=False)
+                return False
+            if not data.get('rol_id'):
+                self.vista.display_message("❌ Error: Debe seleccionar un Rol para el usuario.", is_success=False)
+                return False
+            return True
+
+        def handle_crear_usuario(self, data: Dict[str, Any]):
+            if not self._validar_usuario_data(data): return
+            if self.modelo.handle_crear_usuario(data):
+                self.vista.display_message(f"✅ Usuario {data['primer_nombre']} creado.", is_success=True)
+                self.vista._limpiar_campos_usuario(clear_selection=True)
+                self.load_initial_data()
+            else:
+                self.vista.display_message(f"❌ Error al crear usuario.", is_success=False)
+
+        def handle_guardar_usuario(self, data: Dict[str, Any]):
+            if not self._validar_usuario_data(data): return
+            if self.modelo.handle_guardar_usuario(data):
+                self.vista.display_message(f"✅ Usuario {data['primer_nombre']} guardado.", is_success=True)
+                self.vista._limpiar_campos_usuario(clear_selection=True)
+                self.load_initial_data()
+            else:
+                self.vista.display_message(f"❌ Error al guardar usuario.", is_success=False)
+
+        def handle_eliminar_usuario(self, persona_id: int, nombre_usuario: str):
+            if self.modelo.handle_eliminar_usuario(persona_id):
+                self.vista.display_message(f"🗑️ Usuario {nombre_usuario} eliminado.", is_success=True)
+                self.vista._limpiar_campos_usuario(clear_selection=True)
+                self.load_initial_data()
+            else:
+                self.vista.display_message(f"❌ Error al eliminar usuario.", is_success=False)
+
+    ConfiguracionControlador = MockConfiguracionControlador
 
 
 class ConfiguracionViewFrame(ctk.CTkFrame):
@@ -25,463 +217,348 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
     Hereda de CTkFrame para ser cargado en el panel de contenido.
     """
     
-    # Recibe 'master' (el CTkFrame de contenido de MenuApp) y 'controller' (ConfiguracionControlador)
-    def __init__(self, master, controller):
+    def __init__(self, master, controller: MockConfiguracionControlador):
         super().__init__(master, corner_radius=0, fg_color="transparent") 
         
         self.controller = controller 
-        # 🔴 CORRECCIÓN: La Vista se registra en el Controlador para que este pueda actualizarla
         self.controller.set_view(self) 
         
-        self.rol_seleccionado = None
-        self.usuario_seleccionado = None
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1) 
         
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
+        # --- Variables de Estado de Roles ---
+        self.rol_id_var: Optional[int] = None
+        self.rol_nombre_var = ctk.StringVar(self, value="")
+        self.rol_desc_var = ctk.StringVar(self, value="")
         
+        # --- Variables de Estado de Usuarios ---
+        self.usuario_id_var: Optional[int] = None
+        self.usuario_doc_var = ctk.StringVar(self, value="")
+        self.usuario_nombre_var = ctk.StringVar(self, value="")
+        self.usuario_apellido_var = ctk.StringVar(self, value="")
+        self.usuario_rol_var = ctk.StringVar(self, value="Seleccionar Rol")
+        
+        # --- Widgets ---
+        self.rol_list_frame: Optional[ctk.CTkScrollableFrame] = None
+        self.usuario_list_frame: Optional[ctk.CTkScrollableFrame] = None
+        self.usuario_rol_combo: Optional[ctk.CTkComboBox] = None
+
         self._configurar_interfaz()
-        
-    def _configurar_interfaz(self):
-        """Configura la interfaz gráfica dentro de este frame."""
-        
-        # Contenedor principal
-        main_container = ctk.CTkFrame(self, fg_color="transparent")
-        main_container.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-        main_container.grid_rowconfigure(2, weight=1)
-        main_container.grid_columnconfigure(0, weight=1)
-        
-        self.title_label = ctk.CTkLabel(main_container, text="Módulo de Configuración",
-                                        font=("Arial", 20, "bold"))
-        self.title_label.grid(row=0, column=0, pady=(0, 10), sticky="n")
 
-        # Etiqueta central de mensajes 
-        self.message_label = ctk.CTkLabel(main_container, text="", font=("Arial", 12))
-        self.message_label.grid(row=1, column=0, pady=5, sticky="n")
-        
-        self.tabview = ctk.CTkTabview(main_container, width=780, height=520)
-        self.tabview.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
-
-        self.tabview.add("Roles")
-        self.tabview.add("Usuarios")
-
-        self._configurar_tab_roles()
-        self._configurar_tab_usuarios()
-        
     def show(self):
-        """MÉTODO CLAVE: Llamado por MenuApp, invoca la carga de datos del controlador."""
+        """Llamado por MenuApp, invoca la carga de datos iniciales del controlador."""
         self.controller.load_initial_data() 
+
+    def _configurar_interfaz(self):
+        """Configura la interfaz gráfica."""
         
-    # El resto de métodos de la vista son correctos y se omiten para brevedad.
-    # ... (Se omiten los métodos _configurar_tab_roles, _configurar_tab_usuarios, _handle_crear_rol, etc.)
+        # Título y Mensaje
+        self.title_label = ctk.CTkLabel(self, text="⚙️ CONFIGURACIÓN", 
+                                        font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.grid(row=0, column=0, pady=(20, 10), padx=20, sticky="ew")
 
-    def _configurar_tab_roles(self):
-        tab = self.tabview.tab("Roles")
-        tab.grid_columnconfigure(0, weight=1)
-        tab.grid_columnconfigure(1, weight=2)
-        tab.grid_rowconfigure(0, weight=1)
+        self.message_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=14), text_color="yellow")
+        self.message_label.grid(row=0, column=0, pady=(60, 0), padx=20, sticky="n") # Ubicación fija
 
-        self.roles_frame = ctk.CTkScrollableFrame(tab, width=280, height=400)
-        self.roles_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-
-        controls_container = ctk.CTkFrame(tab)
-        controls_container.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        controls_container.grid_columnconfigure(0, weight=1)
-        controls_container.grid_rowconfigure(0, weight=1)
-
-        controls_frame = ctk.CTkScrollableFrame(controls_container, width=450, height=400)
-        controls_frame.grid(row=0, column=0, sticky="nsew")
-        controls_frame.grid_columnconfigure(0, weight=1)
+        # Frame principal con las dos pestañas (Roles y Usuarios)
+        main_tabview = ctk.CTkTabview(self, fg_color="transparent")
+        main_tabview.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
         
-        # Obtener la ventana raíz para el registro de comandos (importante)
-        root_window = self.winfo_toplevel() 
+        main_tabview.add("👤 Roles")
+        main_tabview.add("👥 Usuarios")
         
-        def validar_solo_letras(texto):
-            if texto == "": return True
-            return all(c.isalpha() or c.isspace() or c in "áéíóúÁÉÍÓÚñÑ" for c in texto)
+        # Configurar las pestañas
+        self._configurar_tab_roles(main_tabview.tab("👤 Roles"))
+        self._configurar_tab_usuarios(main_tabview.tab("👥 Usuarios"))
+
+    # ======================================================================
+    # PESTAÑA DE ROLES
+    # ======================================================================
+
+    def _configurar_tab_roles(self, tab_frame: ctk.CTkFrame):
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.columnconfigure(1, weight=1)
+        tab_frame.rowconfigure(0, weight=1)
+
+        # 1. Lista de Roles Existentes
+        self.rol_list_frame = ctk.CTkScrollableFrame(tab_frame, label_text="Roles Existentes", fg_color="#2e2e2e")
+        self.rol_list_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.rol_list_frame.columnconfigure(0, weight=1)
+
+        # 2. Formulario de Creación/Edición de Roles
+        self.rol_form_frame = ctk.CTkFrame(tab_frame, fg_color="#3c3c3c", corner_radius=10)
+        self.rol_form_frame.grid(row=0, column=1, sticky="nwe", padx=10, pady=10)
+        self.rol_form_frame.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(self.rol_form_frame, text="Gestión de Roles", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=15)
+
+        # Nombre del Rol
+        ctk.CTkLabel(self.rol_form_frame, text="Nombre del Rol:").pack(padx=20, pady=(5, 0), fill="x")
+        ctk.CTkEntry(self.rol_form_frame, textvariable=self.rol_nombre_var).pack(padx=20, pady=(0, 10), fill="x")
+
+        # Descripción
+        ctk.CTkLabel(self.rol_form_frame, text="Descripción:").pack(padx=20, pady=(5, 0), fill="x")
+        ctk.CTkEntry(self.rol_form_frame, textvariable=self.rol_desc_var).pack(padx=20, pady=(0, 20), fill="x")
+
+        # Botones de Acción
+        btn_frame = ctk.CTkFrame(self.rol_form_frame, fg_color="transparent")
+        btn_frame.pack(padx=20, pady=(10, 20), fill="x")
+        btn_frame.columnconfigure((0, 1), weight=1)
         
-        # Usamos el registro de la ventana principal
-        vcmd_letras = (root_window.register(validar_solo_letras), '%P')
-
-        ctk.CTkLabel(controls_frame, text="Nombre del Rol:", 
-                    font=("Arial", 12, "bold")).grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+        self.btn_rol_crear_guardar = ctk.CTkButton(btn_frame, text="➕ Crear Rol", command=self._handle_rol_save, 
+                                                   fg_color="#2ecc71", hover_color="#27ae60", height=35)
+        self.btn_rol_crear_guardar.grid(row=0, column=0, padx=(0, 5), sticky="ew")
         
-        self.rol_nombre_entry = ctk.CTkEntry(
-            controls_frame, 
-            placeholder_text="Nombre del rol",
-            validate="key",
-            validatecommand=vcmd_letras
-        )
-        self.rol_nombre_entry.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.btn_rol_cancelar = ctk.CTkButton(btn_frame, text="❌ Cancelar/Nuevo", command=lambda: self._limpiar_campos_rol(clear_selection=True), 
+                                              fg_color="#e74c3c", hover_color="#c0392b", height=35)
+        self.btn_rol_cancelar.grid(row=0, column=1, padx=(5, 0), sticky="ew")
+
+        self.btn_rol_eliminar = ctk.CTkButton(self.rol_form_frame, text="🗑️ Eliminar Rol Seleccionado", command=self._handle_rol_eliminar, 
+                                              fg_color="#c0392b", hover_color="#a0291a", height=35, state="disabled")
+        self.btn_rol_eliminar.pack(padx=20, pady=(10, 20), fill="x")
+
+
+    def _cargar_roles(self, roles: List[Dict[str, Any]]):
+        """Carga los roles en el marco de lista y prepara las opciones de ComboBox."""
         
-        ctk.CTkLabel(controls_frame, text="Descripción:", 
-                    font=("Arial", 12, "bold")).grid(row=2, column=0, padx=10, pady=(10, 5), sticky="w")
-        
-        self.rol_descripcion_entry = ctk.CTkEntry(controls_frame, placeholder_text="Descripción del rol")
-        self.rol_descripcion_entry.grid(row=3, column=0, padx=10, pady=(0, 20), sticky="ew")
-
-        btn_frame = ctk.CTkFrame(controls_frame)
-        btn_frame.grid(row=4, column=0, padx=10, pady=20, sticky="ew")
-        btn_frame.grid_columnconfigure(0, weight=1)
-        btn_frame.grid_columnconfigure(1, weight=1)
-        btn_frame.grid_columnconfigure(2, weight=1)
-
-        self.btn_crear_rol = ctk.CTkButton(btn_frame, text="Crear Rol",
-                                        command=self._handle_crear_rol)
-        self.btn_crear_rol.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-
-        self.btn_guardar_rol = ctk.CTkButton(btn_frame, text="Guardar Cambios", 
-                                            command=self._handle_guardar_rol, state="disabled")
-        self.btn_guardar_rol.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        
-        self.btn_eliminar_rol = ctk.CTkButton(btn_frame, text="Eliminar Rol",
-                                            command=self._handle_eliminar_rol,
-                                            state="disabled", fg_color="red")
-        self.btn_eliminar_rol.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
-        
-        controls_frame.grid_columnconfigure(0, weight=1)
-
-    def _configurar_tab_usuarios(self):
-        tab = self.tabview.tab("Usuarios")
-        tab.grid_columnconfigure(0, weight=1)
-        tab.grid_columnconfigure(1, weight=2)
-        tab.grid_rowconfigure(0, weight=1)
-
-        self.usuarios_frame = ctk.CTkScrollableFrame(tab, width=280, height=400)
-        self.usuarios_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-
-        controls_container = ctk.CTkFrame(tab)
-        controls_container.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        controls_container.grid_columnconfigure(0, weight=1)
-        controls_container.grid_rowconfigure(0, weight=1)
-
-        controls_frame = ctk.CTkScrollableFrame(controls_container, width=450, height=400)
-        controls_frame.grid(row=0, column=0, sticky="nsew")
-        controls_frame.grid_columnconfigure(0, weight=1)
-
-        root_window = self.winfo_toplevel()
-        
-        # Funciones de validación de entrada
-        def validar_solo_letras(texto):
-            if texto == "": return True
-            return all(c.isalpha() or c.isspace() or c in "áéíóúÁÉÍÓÚñÑ" for c in texto)
-        def validar_solo_numeros(texto):
-            if texto == "": return True
-            return texto.isdigit()
-        def validar_direccion(texto):
-            if texto == "": return True
-            caracteres_permitidos = "áéíóúÁÉÍÓÚñÑ#-.,"
-            return all(c.isalnum() or c.isspace() or c in caracteres_permitidos for c in texto)
-        
-        vcmd_letras = (root_window.register(validar_solo_letras), '%P')
-        vcmd_numeros = (root_window.register(validar_solo_numeros), '%P')
-        vcmd_direccion = (root_window.register(validar_direccion), '%P')
-
-        campos = [
-            ("Primer Nombre:", "primer_nombre_entry", vcmd_letras),
-            ("Segundo Nombre:", "segundo_nombre_entry", vcmd_letras),
-            ("Primer Apellido:", "primer_apellido_entry", vcmd_letras),
-            ("Segundo Apellido:", "segundo_apellido_entry", vcmd_letras),
-            ("Documento de Identidad:", "documento_entry", vcmd_numeros),
-            ("Dirección:", "direccion_entry", vcmd_direccion)
-        ]
-        
-        for i, (texto, nombre, validacion) in enumerate(campos):
-            ctk.CTkLabel(controls_frame, text=texto, 
-                        font=("Arial", 12, "bold")).grid(row=i*2, column=0, padx=10, pady=(10, 5), sticky="w")
-            
-            entry = ctk.CTkEntry(
-                controls_frame, 
-                placeholder_text=texto.replace(":", ""),
-                validate="key",
-                validatecommand=validacion
-            )
-            entry.grid(row=i*2+1, column=0, padx=10, pady=(0, 10), sticky="ew")
-            setattr(self, nombre, entry)
-
-        ctk.CTkLabel(controls_frame, text="Rol:", 
-                    font=("Arial", 12, "bold")).grid(row=12, column=0, padx=10, pady=(10, 5), sticky="w")
-        
-        self.rol_optionmenu = ctk.CTkOptionMenu(controls_frame, values=[])
-        self.rol_optionmenu.grid(row=13, column=0, padx=10, pady=(0, 20), sticky="ew")
-
-        btn_frame = ctk.CTkFrame(controls_frame)
-        btn_frame.grid(row=14, column=0, padx=10, pady=20, sticky="ew")
-        btn_frame.grid_columnconfigure(0, weight=1)
-        btn_frame.grid_columnconfigure(1, weight=1)
-        btn_frame.grid_columnconfigure(2, weight=1)
-
-        self.btn_crear_usuario = ctk.CTkButton(btn_frame, text="Crear Usuario", 
-                                              command=self._handle_crear_usuario)
-        self.btn_crear_usuario.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-
-        self.btn_guardar_usuario = ctk.CTkButton(btn_frame, text="Guardar Cambios", 
-                                                command=self._handle_guardar_usuario, state="disabled")
-        self.btn_guardar_usuario.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        
-        self.btn_eliminar_usuario = ctk.CTkButton(btn_frame, text="Eliminar Usuario", 
-                                                 command=self._handle_eliminar_usuario, 
-                                                 state="disabled", fg_color="red")
-        self.btn_eliminar_usuario.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
-        
-        info_label = ctk.CTkLabel(
-            controls_frame, 
-            text="ℹ️ Campos de nombre y apellido: solo letras | Documento: solo números",
-            text_color="gray",
-            font=ctk.CTkFont(size=11)
-        )
-        info_label.grid(row=15, column=0, padx=10, pady=10, sticky="w")
-        
-        controls_frame.grid_columnconfigure(0, weight=1)
-
-
-    # --- MÉTODOS DE ACCIÓN (Delegación pura al Controlador) ---
-    def _handle_crear_rol(self):
-        nombre = self.rol_nombre_entry.get().strip()
-        descripcion = self.rol_descripcion_entry.get().strip()
-        self.controller.handle_crear_rol(nombre, descripcion)
-    
-    def _handle_guardar_rol(self):
-        if not self.rol_seleccionado:
-            self.display_message("Error: Debe seleccionar un rol para guardar cambios.", is_success=False)
-            return
-        rol_id = self.rol_seleccionado.get('id')
-        nuevo_nombre = self.rol_nombre_entry.get().strip()
-        nueva_descripcion = self.rol_descripcion_entry.get().strip()
-        self.controller.handle_guardar_rol(rol_id, nuevo_nombre, nueva_descripcion)
-    
-    def _handle_eliminar_rol(self):
-        if not self.rol_seleccionado:
-            self.display_message("Error: Debe seleccionar un rol para eliminar.", is_success=False)
-            return
-        rol_id = self.rol_seleccionado.get('id')
-        nombre = self.rol_seleccionado.get('nombre')
-        self.controller.handle_eliminar_rol(rol_id, nombre)
-        
-    def _get_usuario_data(self):
-        rol_nombre = self.rol_optionmenu.get()
-        return {
-            'persona_id': self.usuario_seleccionado.get('persona_id') if self.usuario_seleccionado else None,
-            'rol_nombre': rol_nombre,
-            'primer_nombre': self.primer_nombre_entry.get().strip(),
-            'segundo_nombre': self.segundo_nombre_entry.get().strip(),
-            'primer_apellido': self.primer_apellido_entry.get().strip(),
-            'segundo_apellido': self.segundo_apellido_entry.get().strip(),
-            'documento_identidad': self.documento_entry.get().strip(),
-            'direccion': self.direccion_entry.get().strip(),
-            'nombre_usuario_anterior': self.usuario_seleccionado.get('nombre_usuario', '') if self.usuario_seleccionado else ''
-        }
-    
-    def _handle_crear_usuario(self):
-        datos_usuario = self._get_usuario_data()
-        self.controller.handle_crear_usuario(datos_usuario)
-    
-    def _handle_guardar_usuario(self):
-        if not self.usuario_seleccionado:
-            self.display_message("Error: Debe seleccionar un usuario para guardar cambios.", is_success=False)
-            return
-        datos_usuario = self._get_usuario_data()
-        self.controller.handle_guardar_usuario(datos_usuario)
-
-    def _handle_eliminar_usuario(self):
-        if not self.usuario_seleccionado:
-            self.display_message("Error: Debe seleccionar un usuario para eliminar.", is_success=False)
-            return
-        persona_id = self.usuario_seleccionado.get('persona_id')
-        nombre_usuario = self.usuario_seleccionado.get('nombre_usuario')
-        self.controller.handle_eliminar_usuario(persona_id, nombre_usuario)
-
-    # --- MÉTODOS DE MANIPULACIÓN DE UI (Invocados por el Controlador) ---
-    def _seleccionar_rol(self, rol):
-        self.rol_seleccionado = rol
-        self._limpiar_campos_rol(clear_selection=False)
-        if rol:
-            self.rol_nombre_entry.insert(0, str(rol['nombre']))
-            self.rol_descripcion_entry.insert(0, str(rol.get('descripcion', '')))
-            self.btn_guardar_rol.configure(state="normal")
-            self.btn_eliminar_rol.configure(state="normal")
-        else:
-             self._deshabilitar_botones_rol()
-    
-    def _seleccionar_usuario(self, usuario):
-        self.usuario_seleccionado = usuario
-        self._limpiar_campos_usuario(clear_selection=False)
-        if usuario:
-            self.primer_nombre_entry.insert(0, str(usuario.get('primer_nombre', '')))
-            self.segundo_nombre_entry.insert(0, str(usuario.get('segundo_nombre', '')))
-            self.primer_apellido_entry.insert(0, str(usuario.get('primer_apellido', '')))
-            self.segundo_apellido_entry.insert(0, str(usuario.get('segundo_apellido', '')))
-            self.documento_entry.insert(0, str(usuario.get('documento_identidad', '')))
-            self.direccion_entry.insert(0, str(usuario.get('direccion', '')))
-            if usuario.get('rol_nombre'):
-                self.rol_optionmenu.set(str(usuario.get('rol_nombre', '')))
-            self.btn_guardar_usuario.configure(state="normal")
-            self.btn_eliminar_usuario.configure(state="normal")
-        else:
-            self._deshabilitar_botones_usuario()
-
-    def display_message(self, message, is_success=True):
-        color = "green" if is_success else "red"
-        self.message_label.configure(text=message, text_color=color)
-
-    def set_roles_list(self, roles):
-        for widget in self.roles_frame.winfo_children():
+        # Limpiar lista de roles
+        for widget in self.rol_list_frame.winfo_children():
             widget.destroy()
+            
+        # Preparar opciones para ComboBox de Usuarios
+        rol_options = ["Seleccionar Rol"]
+        self.rol_map: Dict[int, str] = {} # Mapeo de ID a Nombre/Desc para uso interno
         
         for rol in roles:
-            btn = ctk.CTkButton(
-                self.roles_frame, 
-                text=rol['nombre'],
-                command=lambda r=rol: self._seleccionar_rol(r)
-            )
-            btn.pack(fill="x", pady=2)
-        
-        nombres_roles = [rol['nombre'] for rol in roles]
-        self.rol_optionmenu.configure(values=nombres_roles)
-        if nombres_roles:
-            self.rol_optionmenu.set(nombres_roles[0])
-        
-        self._limpiar_campos_rol(clear_selection=True)
+            rol_str = f"{rol['id']} - {rol['nombre']}"
+            rol_options.append(rol_str)
+            self.rol_map[rol['id']] = rol_str
 
-    def set_usuarios_list(self, usuarios):
-        for widget in self.usuarios_frame.winfo_children():
+            # Crear elemento en la lista (visualización)
+            rol_frame = ctk.CTkFrame(self.rol_list_frame, fg_color="#34495e", corner_radius=8)
+            rol_frame.pack(fill="x", padx=10, pady=(6, 3))
+            
+            ctk.CTkLabel(rol_frame, text=rol_str, font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(padx=10, pady=(5, 0), fill="x")
+            ctk.CTkLabel(rol_frame, text=rol['descripcion'], anchor="w", wraplength=400).pack(padx=10, pady=(0, 5), fill="x")
+
+            btn_edit = ctk.CTkButton(rol_frame, text="Editar", width=60, 
+                                     command=lambda r=rol: self._cargar_rol_para_edicion(r))
+            btn_edit.pack(side="right", padx=10, pady=5)
+            
+        # Actualizar ComboBox de Usuarios si existe
+        if self.usuario_rol_combo:
+            self.usuario_rol_combo.configure(values=rol_options)
+            # Asegurar que si no hay un rol seleccionado, se ponga el default
+            if self.usuario_rol_var.get() not in rol_options:
+                self.usuario_rol_var.set(rol_options[0])
+
+
+    def _cargar_rol_para_edicion(self, rol_data: Dict[str, Any]):
+        """Carga los datos de un rol en el formulario para edición."""
+        self.rol_id_var = rol_data['id']
+        self.rol_nombre_var.set(rol_data['nombre'])
+        self.rol_desc_var.set(rol_data['descripcion'])
+        self.btn_rol_crear_guardar.configure(text="💾 Guardar Cambios", fg_color="#3498db", hover_color="#2980b9")
+        self.btn_rol_eliminar.configure(state="normal")
+        self.display_message(f"Cargado Rol ID {rol_data['id']} para edición.", True)
+
+    def _limpiar_campos_rol(self, clear_selection: bool = False):
+        """Limpia los campos del formulario de Roles."""
+        if clear_selection:
+            self.rol_id_var = None
+        self.rol_nombre_var.set("")
+        self.rol_desc_var.set("")
+        self.btn_rol_crear_guardar.configure(text="➕ Crear Rol", fg_color="#2ecc71", hover_color="#27ae60")
+        self.btn_rol_eliminar.configure(state="disabled")
+        self.display_message("Formulario de Rol listo para un nuevo registro.", True)
+
+
+    # --- Handlers de Rol ---
+    
+    def _handle_rol_save(self):
+        """Maneja la creación o edición de un rol."""
+        data = {
+            'id': self.rol_id_var, # Será None si es creación
+            'nombre': self.rol_nombre_var.get().strip(),
+            'descripcion': self.rol_desc_var.get().strip()
+        }
+
+        if data['id'] is None:
+            self.controller.handle_crear_rol(data)
+        else:
+            self.controller.handle_guardar_rol(data)
+
+    def _handle_rol_eliminar(self):
+        """Maneja la eliminación de un rol."""
+        if self.rol_id_var is not None:
+            nombre = self.rol_nombre_var.get()
+            # En una aplicación real, usaríamos un modal para confirmar
+            if messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar el rol '{nombre}' (ID: {self.rol_id_var})?"):
+                 self.controller.handle_eliminar_rol(self.rol_id_var, nombre)
+        else:
+            self.display_message("❌ Seleccione un rol para eliminar.", is_success=False)
+
+
+    # ======================================================================
+    # PESTAÑA DE USUARIOS
+    # ======================================================================
+
+    def _configurar_tab_usuarios(self, tab_frame: ctk.CTkFrame):
+        tab_frame.columnconfigure(0, weight=1)
+        tab_frame.columnconfigure(1, weight=1)
+        tab_frame.rowconfigure(0, weight=1)
+
+        # 1. Lista de Usuarios Existentes
+        self.usuario_list_frame = ctk.CTkScrollableFrame(tab_frame, label_text="Usuarios Existentes", fg_color="#2e2e2e")
+        self.usuario_list_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.usuario_list_frame.columnconfigure(0, weight=1)
+
+        # 2. Formulario de Creación/Edición de Usuarios
+        self.usuario_form_frame = ctk.CTkFrame(tab_frame, fg_color="#3c3c3c", corner_radius=10)
+        self.usuario_form_frame.grid(row=0, column=1, sticky="nwe", padx=10, pady=10)
+        self.usuario_form_frame.columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(self.usuario_form_frame, text="Gestión de Usuarios", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=15)
+
+        # Documento
+        ctk.CTkLabel(self.usuario_form_frame, text="Documento (ID único):").pack(padx=20, pady=(5, 0), fill="x")
+        self.usuario_doc_entry = ctk.CTkEntry(self.usuario_form_frame, textvariable=self.usuario_doc_var)
+        self.usuario_doc_entry.pack(padx=20, pady=(0, 10), fill="x")
+
+        # Nombre
+        ctk.CTkLabel(self.usuario_form_frame, text="Primer Nombre:").pack(padx=20, pady=(5, 0), fill="x")
+        ctk.CTkEntry(self.usuario_form_frame, textvariable=self.usuario_nombre_var).pack(padx=20, pady=(0, 10), fill="x")
+        
+        # Apellido
+        ctk.CTkLabel(self.usuario_form_frame, text="Apellido:").pack(padx=20, pady=(5, 0), fill="x")
+        ctk.CTkEntry(self.usuario_form_frame, textvariable=self.usuario_apellido_var).pack(padx=20, pady=(0, 10), fill="x")
+
+        # Rol
+        ctk.CTkLabel(self.usuario_form_frame, text="Rol Asignado:").pack(padx=20, pady=(5, 0), fill="x")
+        self.usuario_rol_combo = ctk.CTkComboBox(self.usuario_form_frame, 
+                                                 variable=self.usuario_rol_var, 
+                                                 values=["Seleccionar Rol"], # Se actualiza en _cargar_roles
+                                                 height=35)
+        self.usuario_rol_combo.pack(padx=20, pady=(0, 20), fill="x")
+
+        # Botones de Acción
+        btn_frame_user = ctk.CTkFrame(self.usuario_form_frame, fg_color="transparent")
+        btn_frame_user.pack(padx=20, pady=(10, 20), fill="x")
+        btn_frame_user.columnconfigure((0, 1), weight=1)
+        
+        self.btn_usuario_crear_guardar = ctk.CTkButton(btn_frame_user, text="➕ Crear Usuario", command=self._handle_usuario_save, 
+                                                       fg_color="#2ecc71", hover_color="#27ae60", height=35)
+        self.btn_usuario_crear_guardar.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        
+        self.btn_usuario_cancelar = ctk.CTkButton(btn_frame_user, text="❌ Cancelar/Nuevo", command=lambda: self._limpiar_campos_usuario(clear_selection=True), 
+                                                  fg_color="#e74c3c", hover_color="#c0392b", height=35)
+        self.btn_usuario_cancelar.grid(row=0, column=1, padx=(5, 0), sticky="ew")
+
+        self.btn_usuario_eliminar = ctk.CTkButton(self.usuario_form_frame, text="🗑️ Eliminar Usuario Seleccionado", command=self._handle_usuario_eliminar, 
+                                                  fg_color="#c0392b", hover_color="#a0291a", height=35, state="disabled")
+        self.btn_usuario_eliminar.pack(padx=20, pady=(10, 20), fill="x")
+
+
+    def _cargar_usuarios(self, usuarios: List[Dict[str, Any]]):
+        """Carga los usuarios en el marco de lista."""
+        
+        # Limpiar lista de usuarios
+        for widget in self.usuario_list_frame.winfo_children():
             widget.destroy()
-        
+            
         for usuario in usuarios:
-            texto_boton = f"{usuario.get('primer_nombre', 'N/A')} {usuario.get('primer_apellido', 'N/A')}"
-            btn = ctk.CTkButton(
-                self.usuarios_frame, 
-                text=texto_boton,
-                command=lambda u=usuario: self._seleccionar_usuario(u)
-            )
-            btn.pack(fill="x", pady=2)
+            # Crear elemento en la lista (visualización)
+            user_frame = ctk.CTkFrame(self.usuario_list_frame, fg_color="#34495e", corner_radius=8)
+            user_frame.pack(fill="x", padx=10, pady=(6, 3))
             
-        self._limpiar_campos_usuario(clear_selection=True)
+            ctk.CTkLabel(user_frame, text=f"{usuario['primer_nombre']} {usuario['apellido']} ({usuario['rol_nombre']})", 
+                         font=ctk.CTkFont(size=14, weight="bold"), anchor="w").pack(padx=10, pady=(5, 0), fill="x")
+            
+            ctk.CTkLabel(user_frame, text=f"Doc: {usuario['documento']} | ID: {usuario['id']}", 
+                         anchor="w", text_color="#bdc3c7").pack(padx=10, pady=(0, 5), fill="x")
 
-    def _limpiar_campos_rol(self, clear_selection=True):
-        self.rol_nombre_entry.delete(0, "end")
-        self.rol_descripcion_entry.delete(0, "end")
-        if clear_selection:
-            self.rol_seleccionado = None
-            self._deshabilitar_botones_rol()
-    
-    def _limpiar_campos_usuario(self, clear_selection=True):
-        for entry_name in ['primer_nombre_entry', 'segundo_nombre_entry',
-                          'primer_apellido_entry', 'segundo_apellido_entry',
-                          'documento_entry', 'direccion_entry']:
-            entry = getattr(self, entry_name)
-            entry.delete(0, "end")
-        if clear_selection:
-            self.usuario_seleccionado = None
-            self._deshabilitar_botones_usuario()
-    
-    def _deshabilitar_botones_rol(self):
-        self.btn_guardar_rol.configure(state="disabled")
-        self.btn_eliminar_rol.configure(state="disabled")
-        self.rol_seleccionado = None
+            btn_edit = ctk.CTkButton(user_frame, text="Editar", width=60, 
+                                     command=lambda u=usuario: self._cargar_usuario_para_edicion(u))
+            btn_edit.pack(side="right", padx=10, pady=5)
 
-    def _deshabilitar_botones_usuario(self):
-        self.btn_guardar_usuario.configure(state="disabled")
-        self.btn_eliminar_usuario.configure(state="disabled")
-        self.usuario_seleccionado = None
 
-# ----------------------------------------------------------------------
-# CLASE DE CONTROLADOR
-# ----------------------------------------------------------------------
-
-class ConfiguracionControlador:
-    """
-    Controlador que maneja la interacción entre el Modelo y la Vista.
-    Instanciado por MenuApp, y responsable de crear la vista.
-    """
-    
-    # 🔴 CORRECCIÓN: Agregar __init__ para instanciar el Modelo (Mock/Real) y gestionar la Vista
-    def __init__(self):
-        # Aquí debería ir la importación e instanciación del Modelo real.
-        self.modelo = MockConfiguracionModelo() 
-        self.vista = None
-
-    def set_view(self, view_instance):
-        """Asigna la instancia de la vista al controlador."""
-        self.vista = view_instance
+    def _cargar_usuario_para_edicion(self, usuario_data: Dict[str, Any]):
+        """Carga los datos de un usuario en el formulario para edición."""
+        self.usuario_id_var = usuario_data['id']
         
-    def get_view(self):
-        """Método requerido por MenuApp para obtener el frame de la vista."""
-        return self.vista
+        # El documento se debe deshabilitar en edición si se usa como ID único
+        self.usuario_doc_var.set(usuario_data['documento'])
+        self.usuario_doc_entry.configure(state="disabled") 
+        
+        self.usuario_nombre_var.set(usuario_data['primer_nombre'])
+        self.usuario_apellido_var.set(usuario_data['apellido'])
+        
+        # Seleccionar el rol correcto en el ComboBox
+        rol_id = usuario_data.get('rol_id')
+        rol_nombre = usuario_data.get('rol_nombre', 'N/A')
+        
+        opcion_a_seleccionar = f"{rol_id} - {rol_nombre}"
+        
+        combo_values = self.usuario_rol_combo.cget("values")
+        if opcion_a_seleccionar in combo_values:
+            self.usuario_rol_var.set(opcion_a_seleccionar)
+        else:
+            self.usuario_rol_var.set("Seleccionar Rol")
 
-    def load_initial_data(self):
-        """
-        MÉTODO CLAVE: Contiene la lógica para cargar datos iniciales.
-        Llamado por MenuApp a través de vista.show().
-        """
-        if not self.vista:
-            print("ERROR CRÍTICO: El controlador de configuración se llamó sin una vista asignada.")
-            return
+        self.btn_usuario_crear_guardar.configure(text="💾 Guardar Cambios", fg_color="#3498db", hover_color="#2980b9")
+        self.btn_usuario_eliminar.configure(state="normal")
+        self.display_message(f"Cargado Usuario ID {usuario_data['id']} para edición.", True)
 
-        self.vista.display_message("Cargando datos de configuración...", is_success=True)
-        try:
-            roles = self.modelo.get_all_roles()
-            usuarios = self.modelo.get_all_usuarios()
-            
-            self.vista.set_roles_list(roles)
-            self.vista.set_usuarios_list(usuarios)
-            self.vista.display_message("Datos de configuración cargados correctamente. ✅", is_success=True)
-            
-        except Exception as e:
-             self.vista.display_message(f"❌ Error al cargar datos: {e}", is_success=False)
+    def _limpiar_campos_usuario(self, clear_selection: bool = False):
+        """Limpia los campos del formulario de Usuarios."""
+        if clear_selection:
+            self.usuario_id_var = None
+        self.usuario_doc_var.set("")
+        self.usuario_doc_entry.configure(state="normal") # Habilitar Documento para nuevo registro
+        self.usuario_nombre_var.set("")
+        self.usuario_apellido_var.set("")
+        self.usuario_rol_var.set(self.usuario_rol_combo.cget("values")[0] if self.usuario_rol_combo and self.usuario_rol_combo.cget("values") else "Seleccionar Rol")
+        self.btn_usuario_crear_guardar.configure(text="➕ Crear Usuario", fg_color="#2ecc71", hover_color="#27ae60")
+        self.btn_usuario_eliminar.configure(state="disabled")
+        self.display_message("Formulario de Usuario listo para un nuevo registro.", True)
 
-    # --- MÉTODOS DE NEGOCIO (Handlers para la Vista) ---
+
+    # --- Handlers de Usuario ---
     
-    def handle_crear_rol(self, nombre, descripcion):
-        if self.modelo.handle_crear_rol(nombre, descripcion):
-            self.vista.display_message(f"✅ Rol '{nombre}' creado.", is_success=True)
-            self.load_initial_data() 
-        else:
-            self.vista.display_message(f"❌ Error al crear el rol: {nombre}.", is_success=False)
-            
-    def handle_guardar_rol(self, rol_id, nuevo_nombre, nueva_descripcion):
-        if self.modelo.handle_guardar_rol(rol_id, nuevo_nombre, nueva_descripcion):
-            self.vista.display_message(f"✅ Rol '{nuevo_nombre}' modificado.", is_success=True)
-            self.load_initial_data() 
-        else:
-            self.vista.display_message(f"❌ Error al modificar el rol: {nuevo_nombre}.", is_success=False)
+    def _handle_usuario_save(self):
+        """Maneja la creación o edición de un usuario."""
+        rol_str = self.usuario_rol_var.get()
+        rol_id = self.controller.get_rol_id_from_str(rol_str)
+        
+        data = {
+            'id': self.usuario_id_var, # Será None si es creación
+            'documento': self.usuario_doc_var.get().strip(),
+            'primer_nombre': self.usuario_nombre_var.get().strip(),
+            'apellido': self.usuario_apellido_var.get().strip(),
+            'rol_id': rol_id,
+        }
 
-    def handle_eliminar_rol(self, rol_id, nombre):
-        if self.modelo.handle_eliminar_rol(rol_id):
-            self.vista.display_message(f"🗑️ Rol '{nombre}' eliminado.", is_success=True)
-            self.vista._limpiar_campos_rol(clear_selection=True)
-            self.load_initial_data() 
+        if data['id'] is None:
+            self.controller.handle_crear_usuario(data)
         else:
-            self.vista.display_message(f"❌ Error al eliminar el rol: {nombre}.", is_success=False)
+            self.controller.handle_guardar_usuario(data)
 
-    def _validar_usuario_data(self, data):
-        # Implementación de validación básica
-        if not all([data['primer_nombre'], data['documento_identidad']]):
-            self.vista.display_message("❌ Error: Nombre y documento son obligatorios.", is_success=False)
-            return False
-        return True
-
-    def handle_crear_usuario(self, data):
-        if not self._validar_usuario_data(data): return
-        if self.modelo.handle_crear_usuario(data):
-            self.vista.display_message(f"✅ Usuario {data['primer_nombre']} creado.", is_success=True)
-            self.vista._limpiar_campos_usuario(clear_selection=True)
-            self.load_initial_data()
+    def _handle_usuario_eliminar(self):
+        """Maneja la eliminación de un usuario."""
+        if self.usuario_id_var is not None:
+            nombre = f"{self.usuario_nombre_var.get()} {self.usuario_apellido_var.get()}"
+            # En una aplicación real, usaríamos un modal para confirmar
+            if messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar al usuario '{nombre}' (ID: {self.usuario_id_var})?"):
+                 self.controller.handle_eliminar_usuario(self.usuario_id_var, nombre)
         else:
-            self.vista.display_message(f"❌ Error al crear usuario.", is_success=False)
+            self.display_message("❌ Seleccione un usuario para eliminar.", is_success=False)
 
-    def handle_guardar_usuario(self, data):
-        if not self._validar_usuario_data(data): return
-        if self.modelo.handle_guardar_usuario(data):
-            self.vista.display_message(f"✅ Usuario {data['primer_nombre']} guardado.", is_success=True)
-            self.vista._limpiar_campos_usuario(clear_selection=True)
-            self.load_initial_data()
-        else:
-            self.vista.display_message(f"❌ Error al guardar usuario.", is_success=False)
 
-    def handle_eliminar_usuario(self, persona_id, nombre_usuario):
-        if self.modelo.handle_eliminar_usuario(persona_id):
-            self.vista.display_message(f"🗑️ Usuario {nombre_usuario} eliminado.", is_success=True)
-            self.vista._limpiar_campos_usuario(clear_selection=True)
-            self.load_initial_data()
-        else:
-            self.vista.display_message(f"❌ Error al eliminar usuario.", is_success=False)
+    # ======================================================================
+    # MÉTODO DE UTILIDAD
+    # ======================================================================
+
+    def display_message(self, message: str, is_success: bool = True):
+        """Muestra un mensaje de estado en la interfaz."""
+        color = "#2ecc71" if is_success else "#e74c3c"
+        self.message_label.configure(text=message, text_color=color)

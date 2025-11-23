@@ -11,15 +11,23 @@ import importlib
 # Configurar el path para importaciones
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(os.path.dirname(current_dir)) # Subir dos niveles para Proyecto_prueba
+    # CORRECCIÓN: Subir solo un nivel para alcanzar la raíz del proyecto
+    # (asumiendo que views/ y controllers/ están en el mismo nivel, bajo project_root)
+    project_root = os.path.dirname(current_dir) 
+    
     if project_root not in sys.path:
         sys.path.append(project_root)
     
+    # Asegurar que el directorio actual (donde están las views) esté en el path
     views_dir = current_dir
     if os.path.exists(views_dir) and views_dir not in sys.path:
         sys.path.append(views_dir)
         
+    print(f"Directorio actual (views): {current_dir}")
+    print(f"Raíz del proyecto añadida a sys.path: {project_root}")
+    
 except NameError:
+    # Este bloque se mantiene para entornos donde __file__ no está definido
     pass
 
 ctk.set_appearance_mode("dark")
@@ -27,39 +35,82 @@ ctk.set_default_color_theme("blue")
 
 
 # ----------------------------------------------------------------------
-# MAPPING DE VISTAS (CORREGIDO)
+# MAPPING DE VISTAS (CORRECCIÓN DE RUTAS DE CONTROLADOR)
 # ----------------------------------------------------------------------
 
 MODULE_PATHS = {
-    "gestion_nna": {"module": "funcion_vista_nna", "class": "ViewFrame"},
-    "gestion_familiares": {"module": "funcion_vista_fami", "class": "ViewFrame"},
-    "gestion_ue": {"module": "funcion_vista_ue", "class": "ViewFrame"},
-    "gestion_matriculas": {"module": "funcion_vista_matricula", "class": "ViewFrame"},
+    # NNA
+    "gestion_nna": {
+        "view_module": "funcion_vista_nna",          
+        "view_class": "NNAViewFrame",                 
+        "controller_module": "controllers.nna_controller",      # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "NNAControlador"          
+    },
     
-    # Artículos 
+    # Familiares
+    "gestion_familiares": {
+        "view_module": "funcion_vista_fami", 
+        "view_class": "FamiliarViewFrame",            
+        "controller_module": "controllers.familiar_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "FamiliarControlador"        
+    },
+    
+    # UE (Unidad de Ejecución/Entidad)
+    "gestion_ue": {
+        "view_module": "funcion_vista_ue", 
+        "view_class": "UnidadEducativaViewFrame",        
+        "controller_module": "controllers.unidad_educativa_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "UnidadEducativaControlador" 
+    },
+    
+    # Matrículas
+    "gestion_matriculas": {
+        "view_module": "funcion_vista_matricula", 
+        "view_class": "MatriculaViewFrame",             
+        "controller_module": "controllers.matricula_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "MatriculaControlador"       
+    },
+    
+    # Artículos
     "gestion_articulos": {
-        "module": "funcion_vista_art",
-        "class": "ArticuloVista" 
+        "view_module": "funcion_vista_art",
+        "view_class": "ArticuloViewFrame",             
+        "controller_module": "controllers.articulo_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "ArticuloControlador"       
     },
     
-    "gestion_personal": {"module": "funcion_vista_personal", "class": "ViewFrame"},
+    # Personal
+    "gestion_personal": {
+        "view_module": "funcion_vista_personal", 
+        "view_class": "PersonalViewFrame",             
+        "controller_module": "controllers.personal_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "PersonalControlador"        
+    },
     
-    # Configuración (CORREGIDO: Apunta al Controlador y Vista correctos)
+    # Configuración
     "configuracion": {
-        "module": "configuracion_view",
-        "view_class": "ConfiguracionViewFrame", # 🔴 CORRECCIÓN 1: Nombre correcto de la clase de la Vista
-        "controller": "ConfiguracionControlador" # 🔴 CLAVE: Clase del Controlador
+        "view_module": "configuracion_view",
+        "view_class": "ConfiguracionViewFrame",         
+        "controller_module": "controllers.configuracion_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "ConfiguracionControlador"   
     },
     
-    "reportes": {"module": "reportes_view", "class": "ViewFrame"}, 
-    "seguimiento_expedientes": {"module": "seguimiento_view", "class": "ViewFrame"}, 
+    # Reportes
+    "reportes": {
+        "view_module": "reportes_view", 
+        "view_class": "ReportesViewFrame",                  
+        "controller_module": "controllers.reportes_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "ReportesControlador"      
+    }, 
+    
+    # Seguimiento de Expedientes
+    "seguimiento_expedientes": {
+        "view_module": "funcion_vista_seguimiento_expedientes", 
+        "view_class": "SeguimientoExpedienteViewFrame", 
+        "controller_module": "controllers.seguimiento_expediente_controllers", # ✅ CLAVE Y RUTA CORRECTA
+        "controller_class": "SeguimientoExpedienteControlador"     
+    }, 
 }
-
-# ----------------------------------------------------------------------
-# VISTA INICIAL (MenuInicioFrame)
-# ----------------------------------------------------------------------
-
-# ... (Clases BaseViewFrame y MenuInicioFrame son correctas)
 
 class BaseViewFrame(ctk.CTkFrame):
     """Clase base para módulos de vista que asegura la configuración de grid."""
@@ -111,7 +162,6 @@ class MenuApp(ctk.CTk):
     def __init__(self, role=None):
         super().__init__()
         self.role = role # Almacenar el rol
-        # Usar el rol en el título
         self.title(f"🏛️ Sistema de Gestión LOPNNA - Consejo de Protección Carrizal ({role if role else 'Invitado'})") 
         self.geometry("1400x900")
         self.minsize(1200, 800)
@@ -202,21 +252,8 @@ class MenuApp(ctk.CTk):
 
 
     def _get_module_info(self, module_name):
-        """Helper para extraer la ruta del módulo, la clase de la vista y, opcionalmente, la clase del controlador."""
-        path_info = MODULE_PATHS.get(module_name)
-        
-        if not path_info:
-            # path, view_class, controller_class
-            return module_name, "ViewFrame", None 
-        
-        module_path = path_info.get('module')
-        view_class_name = path_info.get('view_class') or path_info.get('class')
-        controller_class_name = path_info.get('controller')
-        
-        if not module_path or not view_class_name:
-             raise ValueError(f"Falta 'module' o 'view_class'/'class' en la configuración de {module_name}")
-             
-        return module_path, view_class_name, controller_class_name
+        """Helper para extraer la información de configuración del módulo."""
+        return MODULE_PATHS.get(module_name, {})
 
 
     def show_view(self, module_name):
@@ -235,31 +272,45 @@ class MenuApp(ctk.CTk):
         if module_name not in self._frames:
             # Intento de carga de la vista (Instanciación)
             try:
-                module_path, view_class_name, controller_class_name = self._get_module_info(module_name)
+                # Obtener la información completa (usando las 4 claves)
+                info = self._get_module_info(module_name)
                 
-                module = importlib.import_module(module_path) 
+                view_module_path = info.get('view_module') 
+                view_class_name = info.get('view_class') 
+                controller_module_path = info.get('controller_module')
+                controller_class_name = info.get('controller_class') 
                 
-                if controller_class_name:
-                    # 🔴 MÓDULO MVC COMPLETO (E.g., Configuración)
-                    ControllerClass = getattr(module, controller_class_name)
-                    ViewClass = getattr(module, view_class_name)
+                if not view_module_path or not view_class_name:
+                    # Resuelve el error "Falta 'view_module' o 'view_class'"
+                    raise ValueError(f"Falta 'view_module' o 'view_class' en la configuración de {module_name}.")
 
-                    # Instanciar el Controlador (solo una vez)
+                # 1. Cargar el Módulo de la Vista
+                # Nota: Si el view_module también está en la carpeta 'views', funcionará
+                # gracias a que 'views_dir' se añadió a sys.path.
+                view_module = importlib.import_module(view_module_path) 
+                ViewClass = getattr(view_module, view_class_name)
+
+                if controller_module_path and controller_class_name:
+                    # 🔴 MÓDULO MVC COMPLETO (Controlador Externo)
+                    
+                    # 2. Cargar el Módulo del Controlador
+                    # Aquí se usa la ruta completa: 'controllers.nna_controller'
+                    controller_module = importlib.import_module(controller_module_path)
+                    ControllerClass = getattr(controller_module, controller_class_name)
+
+                    # 3. Instanciar el Controlador (solo una vez)
                     if module_name not in self._controllers:
-                         # ⚠️ Asumo que el constructor del Controlador no requiere argumentos
-                         # (o que se inicializa con mocks en su archivo).
                         controller_instance = ControllerClass()
                         self._controllers[module_name] = controller_instance 
                     
                     controller_instance = self._controllers[module_name]
                     
-                    # Instanciar la Vista, pasándole el Frame Principal y el Controlador Real
+                    # 4. Instanciar la Vista, pasándole el Controlador Real
                     frame = ViewClass(self.main_content_frame, controller_instance)
                     
                 else:
                     # 🟢 MÓDULO SIMPLE (MenuApp actúa como Controlador)
-                    ViewClass = getattr(module, view_class_name)
-                    frame = ViewClass(self.main_content_frame, self) # MenuApp es el controlador
+                    frame = ViewClass(self.main_content_frame, self) 
                     
                 
                 # Almacenar la vista instanciada en el caché
@@ -267,12 +318,13 @@ class MenuApp(ctk.CTk):
                 frame.grid(row=0, column=0, sticky="nsew")
 
             except ImportError as e:
-                msg_error = f"No se pudo importar el módulo real: {module_name} ({module_path}).\nVerifique que el archivo exista y no tenga errores.\nError: {e}"
+                # Si falla, es porque la ruta del controlador (controllers.nombre_modulo) no se resolvió
+                msg_error = f"No se pudo importar el módulo: {module_name}. Verifique que el archivo del Controlador ({controller_module_path}.py) exista en la carpeta 'controllers/' dentro de la raíz del proyecto.\nError detallado: {e}"
                 messagebox.showerror("❌ Error de Importación", msg_error)
                 print(f"Error de Importación del módulo {module_name}: {e}")
                 return 
             except Exception as e:
-                msg_error = f"Error al instanciar la clase {view_class_name} del módulo {module_name}.\nVerifique el constructor de la vista.\nError: {e}"
+                msg_error = f"Error al instanciar la clase {view_class_name} del módulo {module_name}.\nVerifique el constructor de la vista y que la clase exista.\nError: {e}"
                 messagebox.showerror("❌ Error de Carga de Vista", msg_error)
                 print(f"Error al instanciar la vista {module_name}: {e}")
                 return 
@@ -318,7 +370,6 @@ Este sistema permite la administración integral de:
 def main(role=None): 
     try:
         print("Iniciando aplicación en modo panel lateral...")
-        # 🟢 CORRECCIÓN 3: Pasar el rol a la clase MenuApp
         app = MenuApp(role=role) 
         app.mainloop()
         print("El sistema ha sido cerrado correctamente.")

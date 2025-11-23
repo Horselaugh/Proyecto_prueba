@@ -1,365 +1,373 @@
-# funcion_vista_ue.py
-from customtkinter import *
-import sys
-import os
+import customtkinter as ctk
+from tkinter import ttk, messagebox
+from typing import List, Dict, Any, Optional
 
-# Agregar el directorio raíz al path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ======================================================================
+# 1. Definición del MOCK (Disponible globalmente)
+# Esto garantiza que el nombre 'MockControlador' exista
+# para la anotación de tipo en UnidadEducativaViewFrame.
+# ======================================================================
 
-from controllers.unidad_educativa_controller import crear, leer, actualizar, eliminar
-
-def mostrar_resultado(ventana, resultado):
-    ventana_resultado = CTkToplevel(ventana)
-    ventana_resultado.geometry("800x600")
-    ventana_resultado.title("📋 Resultado de la Operación")
-    ventana_resultado.configure(fg_color="#1e1e1e")
+class MockControlador:
+    """Clase MOCK para simular el controlador de Unidades Educativas."""
+    def __init__(self): self.vista = None
+    def set_view(self, view_instance): self.vista = view_instance
     
-    texto = CTkTextbox(ventana_resultado, wrap="word", font=("Arial", 14))
-    texto.pack(fill="both", expand=True, padx=20, pady=20)
-    
-    if resultado.get("status") == "success":
-        texto.insert("1.0", "✅ OPERACIÓN EXITOSA\n\n")
-        if "message" in resultado:
-            texto.insert("end", resultado["message"] + "\n\n")
-        if "data" in resultado:
-            texto.insert("end", "📊 DATOS ENCONTRADOS:\n")
-            texto.insert("end", "="*50 + "\n")
-            for row in resultado["data"]:
-                texto.insert("end", str(row) + "\n")
-    else:
-        texto.insert("1.0", "❌ ERROR EN LA OPERACIÓN\n\n")
-        texto.insert("end", resultado.get("error", "Error desconocido"))
-    
-    texto.configure(state="disabled")
-
-def main():
-    # Crear ventana principal
-    ventana = CTkToplevel()
-    ventana.geometry("1400x900")
-    ventana.title("🏫 Gestión de Unidades Educativas")
-    ventana.configure(fg_color="#1e1e1e")
-    
-    # Centrar contenido
-    frame_principal = CTkFrame(ventana, fg_color="transparent")
-    frame_principal.pack(expand=True, fill="both", padx=80, pady=80)
-    
-    CTkLabel(frame_principal, text="🏫 GESTIÓN DE UNIDADES EDUCATIVAS", 
-             font=("Arial", 28, "bold")).pack(pady=40)
-    
-    CTkLabel(frame_principal, text="Seleccione una operación:", 
-             font=("Arial", 18)).pack(pady=10)
-
-    # Frame para botones
-    frame_botones = CTkFrame(frame_principal, fg_color="transparent")
-    frame_botones.pack(expand=True, pady=40)
-
-    # Botones de acción
-    btn_crear = CTkButton(frame_botones, text="➕ CREAR UNIDAD EDUCATIVA", 
-                         command=vista_crear, height=60, width=300,
-                         font=("Arial", 18, "bold"), fg_color="#2aa876", hover_color="#228c61")
-    btn_crear.pack(pady=20)
-    
-    btn_leer = CTkButton(frame_botones, text="🔍 BUSCAR UNIDAD EDUCATIVA", 
-                        command=vista_leer, height=60, width=300,
-                        font=("Arial", 18, "bold"), fg_color="#3b8ed0", hover_color="#2d70a7")
-    btn_leer.pack(pady=20)
-
-    btn_actualizar = CTkButton(frame_botones, text="✏️ ACTUALIZAR UNIDAD EDUCATIVA", 
-                              command=vista_actualizar, height=60, width=300,
-                              font=("Arial", 18, "bold"), fg_color="#f0b400", hover_color="#c79500")
-    btn_actualizar.pack(pady=20)
-
-    btn_eliminar = CTkButton(frame_botones, text="🗑️ ELIMINAR UNIDAD EDUCATIVA", 
-                            command=vista_eliminar, height=60, width=300,
-                            font=("Arial", 18, "bold"), fg_color="#e74c3c", hover_color="#c0392b")
-    btn_eliminar.pack(pady=20)
-
-    ventana.mainloop()
-
-def vista_crear():
-    # Crear ventana para crear UE
-    ventana = CTkToplevel()
-    ventana.geometry("1200x800")
-    ventana.title("➕ Crear Unidad Educativa")
-    ventana.configure(fg_color="#1e1e1e")
-    
-    # Configurar grid
-    ventana.grid_columnconfigure(1, weight=1)
-
-    # Título
-    CTkLabel(ventana, text="➕ CREAR NUEVA UNIDAD EDUCATIVA", 
-             font=("Arial", 24, "bold")).grid(row=0, column=0, columnspan=2, pady=10)
-
-    # Campos de entrada para UE
-    campos = {
-        "nombre": CTkEntry(ventana, placeholder_text="🏫 Nombre de la unidad educativa", height=45, font=("Arial", 14)),
-        "nombre_director": CTkEntry(ventana, placeholder_text="👨‍💼 Nombre del director", height=45, font=("Arial", 14)),
-        "tipo": CTkOptionMenu(ventana, values=["🏛️ Pública", "💼 Privada", "🏢 Municipal"], height=45, font=("Arial", 14)),
-        "telefono": CTkEntry(ventana, placeholder_text="📞 11 dígitos", height=45, font=("Arial", 14)),
-        "direccion": CTkEntry(ventana, placeholder_text="📍 Dirección completa", height=45, font=("Arial", 14))
-    }
-
-    # Posicionamiento
-    for i, (label_text, entry) in enumerate([
-        ("🏫 Nombre de la UE*:", campos["nombre"]),
-        ("👨‍💼 Nombre del Director*:", campos["nombre_director"]),
-        ("🏛️ Tipo de UE*:", campos["tipo"]),
-        ("📞 Teléfono* (11 dígitos):", campos["telefono"]),
-        ("📍 Dirección*:", campos["direccion"])
-    ], start=1):
-        CTkLabel(ventana, text=label_text, font=("Arial", 16)).grid(row=i, column=0, padx=30, pady=15, sticky="e")
-        entry.grid(row=i, column=1, padx=30, pady=15, sticky="ew")
-
-    def ejecutar_crear():
-        # Validaciones
-        if not campos["nombre"].get():
-            mostrar_resultado(ventana, {"error": "❌ El nombre de la UE es obligatorio", "status": "error"})
-            return
-        if not campos["nombre_director"].get():
-            mostrar_resultado(ventana, {"error": "❌ El nombre del director es obligatorio", "status": "error"})
-            return
-        if not campos["direccion"].get():
-            mostrar_resultado(ventana, {"error": "❌ La dirección es obligatoria", "status": "error"})
-            return
+    def load_initial_data(self):
+        if self.vista:
+            mock_data = [
+                {"id": 1, "nombre": "E.B.N. Simon Bolivar", "director": "Ana Perez", "tipo": "Pública", "telefono": "04121234567"},
+                {"id": 2, "nombre": "U.E. Colegio San Jose", "director": "Luis Garcia", "tipo": "Privada", "telefono": "02129876543"},
+            ]
+            self.vista.display_list(mock_data)
+            self.vista.display_message("Mock: Datos iniciales cargados.", True)
             
-        # Validar teléfono antes de enviar
-        telefono = campos["telefono"].get()
-        if len(telefono) != 11 or not telefono.isdigit():
-            mostrar_resultado(ventana, {"error": "❌ El teléfono debe tener exactamente 11 dígitos", "status": "error"})
-            return
-            
-        resultado = crear(
-            campos["nombre"].get(),
-            campos["nombre_director"].get(),
-            campos["tipo"].get().replace("🏛️ ", "").replace("💼 ", "").replace("🏢 ", ""),
-            telefono,
-            campos["direccion"].get()
-        )
-        mostrar_resultado(ventana, resultado)
-
-    btn_crear = CTkButton(ventana, text="🚀 CREAR UNIDAD EDUCATIVA", command=ejecutar_crear,
-                         height=55, font=("Arial", 18, "bold"), fg_color="#2aa876", hover_color="#228c61")
-    btn_crear.grid(row=6, column=0, columnspan=2, pady=40)
-
-    ventana.grid_columnconfigure(1, weight=1)
-
-def vista_leer():
-    ventana = CTkToplevel()
-    ventana.geometry("1200x800")
-    ventana.title("🔍 Buscar Unidad Educativa")
-    ventana.configure(fg_color="#1e1e1e")
-    ventana.grid_columnconfigure(0, weight=1)
-
-    # Título
-    CTkLabel(ventana, text="🔍 BUSCAR UNIDAD EDUCATIVA", font=("Arial", 24, "bold")).grid(row=0, column=0, pady=10)
-
-    # Opciones de búsqueda
-    CTkLabel(ventana, text="🔎 Buscar por:", font=("Arial", 18)).grid(row=1, column=0, sticky="w", padx=30, pady=15)
-    
-    opcion_busqueda = StringVar(value="nombre_tipo")
-    frame_opciones = CTkFrame(ventana, fg_color="#2e2e2e")
-    frame_opciones.grid(row=2, column=0, sticky="ew", padx=30, pady=15)
-    
-    CTkRadioButton(frame_opciones, text="🏫 Nombre y Tipo", variable=opcion_busqueda, value="nombre_tipo", font=("Arial", 16)).pack(side="left", padx=25, pady=10)
-    CTkRadioButton(frame_opciones, text="🔢 ID", variable=opcion_busqueda, value="id", font=("Arial", 16)).pack(side="left", padx=25, pady=10)
-
-    # Frame para campos de búsqueda
-    frame_campos = CTkFrame(ventana, fg_color="#2e2e2e")
-    frame_campos.grid(row=3, column=0, sticky="nsew", padx=30, pady=25)
-    frame_campos.grid_columnconfigure(1, weight=1)
-
-    # Variables para almacenar las entradas
-    current_entries = {}
-    
-    def mostrar_campos():
-        # Limpiar el frame
-        for widget in frame_campos.winfo_children():
-            widget.destroy()
+    def handle_crear_ue(self, data): 
+        self.vista.display_message(f"Mock: UE '{data['nombre']}' creada.", True)
+        self.vista.limpiar_formulario()
+        self.load_initial_data()
         
-        if opcion_busqueda.get() == "nombre_tipo":
-            # Campos para nombre y tipo
-            CTkLabel(frame_campos, text="🏫 Nombre UE:", font=("Arial", 16)).grid(row=0, column=0, padx=15, pady=20, sticky="e")
-            entry_nombre = CTkEntry(frame_campos, height=45, font=("Arial", 14))
-            entry_nombre.grid(row=0, column=1, padx=15, pady=20, sticky="ew")
-            
-            CTkLabel(frame_campos, text="🏛️ Tipo UE:", font=("Arial", 16)).grid(row=1, column=0, padx=15, pady=20, sticky="e")
-            entry_tipo = CTkOptionMenu(frame_campos, values=["🏛️ Pública", "💼 Privada", "🏢 Municipal"], height=45, font=("Arial", 14))
-            entry_tipo.grid(row=1, column=1, padx=15, pady=20, sticky="ew")
-            
-            current_entries["nombre"] = entry_nombre
-            current_entries["tipo"] = entry_tipo
+    def handle_buscar_ue(self, *args, **kwargs): self.load_initial_data()
+    
+    def handle_cargar_ue_para_edicion(self, id_ue): 
+        self.vista._establecer_datos_formulario({"nombre": "Cargada Mock", "director": "Test", "tipo": "Pública", "telefono": "00000000000", "direccion": "Dir"}, id_ue)
+        self.vista.display_message(f"Mock: UE ID {id_ue} cargada.", True)
+        
+    def handle_actualizar_ue(self, id_ue, data): 
+        self.vista.display_message(f"Mock: UE ID {id_ue} actualizada.", True)
+        self.vista.limpiar_formulario()
+        self.load_initial_data()
+        
+    def handle_eliminar_ue(self, id_ue): 
+        self.vista.display_message(f"Mock: UE ID {id_ue} eliminada.", True)
+        self.vista.limpiar_formulario()
+        self.load_initial_data()
+
+
+# ======================================================================
+# 2. Manejo de la importación del Controlador Real
+# ======================================================================
+
+try:
+    # Se asume que el controlador está en un directorio superior
+    # from controllers.unidad_educativa_controller import UnidadEducativaControlador
+    
+    # Si la importación real funciona, se usaría UnidadEducativaControlador.
+    # Como no tenemos el archivo, simulamos el fallo para usar el Mock.
+    raise ImportError 
+except ImportError:
+    # En caso de fallo (o para pruebas), usamos el Mock
+    UnidadEducativaControlador = MockControlador
+
+
+# ======================================================================
+# 3. La Vista CTkFrame
+# ======================================================================
+
+class UnidadEducativaViewFrame(ctk.CTkFrame):
+    """
+    Vista para el módulo de Unidades Educativas. Hereda de CTkFrame.
+    Implementa la interfaz de CRUD y delega acciones al controlador.
+    """
+    
+    # Usamos MockControlador en la anotación, que ahora está definido.
+    def __init__(self, master, controller: MockControlador):
+        super().__init__(master, corner_radius=0, fg_color="transparent") 
+        
+        self.controller = controller 
+        self.controller.set_view(self) 
+        
+        self.ue_id_cargada: Optional[int] = None # ID de la UE si está en modo edición
+        
+        self.columnconfigure((0, 1), weight=1)
+        self.rowconfigure(2, weight=1) 
+        
+        # Variables de control
+        self.nombre_var = ctk.StringVar(self)
+        self.director_var = ctk.StringVar(self)
+        self.tipo_var = ctk.StringVar(self, value="Pública")
+        self.telefono_var = ctk.StringVar(self)
+        self.direccion_var = ctk.StringVar(self)
+        self.buscar_id_var = ctk.StringVar(self)
+        self.buscar_nombre_var = ctk.StringVar(self)
+
+        self._configurar_interfaz()
+
+    def show(self):
+        """Llamado por MenuApp, invoca la carga de datos iniciales del controlador."""
+        self.controller.load_initial_data() 
+
+    def _configurar_interfaz(self):
+        """Crea y posiciona todos los widgets de la interfaz."""
+        
+        # Fila 0: Título y Mensaje
+        title_frame = ctk.CTkFrame(self, fg_color="transparent")
+        title_frame.grid(row=0, column=0, columnspan=2, pady=(20, 10), padx=20, sticky="ew")
+        title_frame.columnconfigure(0, weight=1)
+        
+        self.title_label = ctk.CTkLabel(title_frame, text="🏫 GESTIÓN DE UNIDADES EDUCATIVAS", 
+                                        font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.grid(row=0, column=0, sticky="ew")
+
+        self.message_label = ctk.CTkLabel(title_frame, text="", font=ctk.CTkFont(size=14), text_color="#2ecc71")
+        self.message_label.grid(row=1, column=0, pady=5, sticky="ew")
+
+        # Fila 1: Frame de Formulario
+        form_frame = ctk.CTkFrame(self)
+        form_frame.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(10, 20))
+        form_frame.columnconfigure((0, 1), weight=1)
+        
+        ctk.CTkLabel(form_frame, text="Nombre:", anchor="w").grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+        ctk.CTkEntry(form_frame, textvariable=self.nombre_var).grid(row=1, column=0, padx=10, pady=(0, 10), sticky="ew")
+        
+        ctk.CTkLabel(form_frame, text="Director:", anchor="w").grid(row=0, column=1, padx=10, pady=(10, 5), sticky="w")
+        ctk.CTkEntry(form_frame, textvariable=self.director_var).grid(row=1, column=1, padx=10, pady=(0, 10), sticky="ew")
+
+        ctk.CTkLabel(form_frame, text="Tipo:", anchor="w").grid(row=2, column=0, padx=10, pady=(10, 5), sticky="w")
+        ctk.CTkComboBox(form_frame, variable=self.tipo_var, values=["Pública", "Privada"]).grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew")
+
+        ctk.CTkLabel(form_frame, text="Teléfono:", anchor="w").grid(row=2, column=1, padx=10, pady=(10, 5), sticky="w")
+        ctk.CTkEntry(form_frame, textvariable=self.telefono_var).grid(row=3, column=1, padx=10, pady=(0, 10), sticky="ew")
+
+        ctk.CTkLabel(form_frame, text="Dirección:", anchor="w").grid(row=4, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="w")
+        ctk.CTkEntry(form_frame, textvariable=self.direccion_var).grid(row=5, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
+
+        # Botones de Acción
+        self.btn_crear = ctk.CTkButton(form_frame, text="➕ Registrar", command=self._handle_crear_actualizar, 
+                                        fg_color="#2ecc71", hover_color="#27ae60")
+        self.btn_crear.grid(row=6, column=0, padx=10, pady=(10, 20), sticky="ew")
+        
+        self.btn_limpiar = ctk.CTkButton(form_frame, text="🧹 Limpiar", command=self.limpiar_formulario,
+                                          fg_color="#f39c12", hover_color="#e67e22")
+        self.btn_limpiar.grid(row=6, column=1, padx=10, pady=(10, 20), sticky="ew")
+        
+        self.btn_eliminar = ctk.CTkButton(form_frame, text="🗑️ Eliminar", command=self._handle_eliminar, 
+                                         fg_color="#e74c3c", hover_color="#c0392b", state="disabled")
+        self.btn_eliminar.grid(row=7, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
+
+
+        # Fila 1: Frame de Búsqueda y Lista (Derecha)
+        list_frame = ctk.CTkFrame(self)
+        list_frame.grid(row=1, column=1, rowspan=2, sticky="nsew", padx=(10, 20), pady=(10, 20))
+        list_frame.columnconfigure(0, weight=1)
+        list_frame.rowconfigure(4, weight=1) # El Treeview crece
+        
+        # Búsqueda por ID
+        ctk.CTkLabel(list_frame, text="Buscar por ID:", anchor="w").grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
+        search_id_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
+        search_id_frame.grid(row=1, column=0, sticky="ew", padx=10)
+        search_id_frame.columnconfigure(0, weight=1)
+        ctk.CTkEntry(search_id_frame, textvariable=self.buscar_id_var, placeholder_text="ID de la UE").grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(search_id_frame, text="🔍 ID", command=self._handle_buscar_id, width=50).grid(row=0, column=1)
+
+        # Búsqueda por Nombre (y botón Listar)
+        ctk.CTkLabel(list_frame, text="Buscar por Nombre/Listar Todos:", anchor="w").grid(row=2, column=0, padx=10, pady=(10, 5), sticky="w")
+        search_name_frame = ctk.CTkFrame(list_frame, fg_color="transparent")
+        search_name_frame.grid(row=3, column=0, sticky="ew", padx=10)
+        search_name_frame.columnconfigure(0, weight=1)
+        ctk.CTkEntry(search_name_frame, textvariable=self.buscar_nombre_var, placeholder_text="Nombre de la UE").grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ctk.CTkButton(search_name_frame, text="🔍 Nom.", command=self._handle_buscar_nombre, width=70).grid(row=0, column=1, padx=(0, 5))
+        ctk.CTkButton(search_name_frame, text="🔄 Todos", command=self.controller.load_initial_data, width=70).grid(row=0, column=2)
+
+        # Treeview (Tabla de Resultados)
+        self.treeview_frame = ctk.CTkFrame(list_frame)
+        self.treeview_frame.grid(row=4, column=0, sticky="nsew", padx=10, pady=(10, 10))
+        self.treeview_frame.columnconfigure(0, weight=1)
+        self.treeview_frame.rowconfigure(0, weight=1)
+        
+        # Configurar Treeview con estilo TTK para temas oscuros
+        style = ttk.Style()
+        style.theme_use("default") 
+        style.configure("Treeview", 
+                        background="#2b2b2b", 
+                        foreground="white", 
+                        rowheight=25, 
+                        fieldbackground="#2b2b2b", 
+                        font=('Arial', 10))
+        style.map('Treeview', 
+                  background=[('selected', '#3498db')])
+                  
+        self.treeview = ttk.Treeview(self.treeview_frame, columns=("ID", "Nombre", "Director", "Tipo", "Teléfono"), show='headings')
+        self.treeview.grid(row=0, column=0, sticky="nsew")
+        
+        # Scrollbar vertical (CustomTkinter)
+        self.scrollbar = ctk.CTkScrollbar(self.treeview_frame, command=self.treeview.yview)
+        self.scrollbar.grid(row=0, column=1, sticky='ns')
+        self.treeview.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Definir encabezados y columnas
+        self.treeview.heading("ID", text="ID")
+        self.treeview.column("ID", width=40, anchor="center")
+        self.treeview.heading("Nombre", text="Nombre")
+        self.treeview.column("Nombre", width=180)
+        self.treeview.heading("Director", text="Director")
+        self.treeview.column("Director", width=120)
+        self.treeview.heading("Tipo", text="Tipo")
+        self.treeview.column("Tipo", width=80)
+        self.treeview.heading("Teléfono", text="Teléfono")
+        self.treeview.column("Teléfono", width=100)
+
+        # Vincular evento de selección
+        self.treeview.bind('<<TreeviewSelect>>', self._on_treeview_select)
+        
+        
+    # ----------------------------------------------------------------------
+    # Métodos de Eventos (Delegación al Controlador)
+    # ----------------------------------------------------------------------
+
+    def _handle_crear_actualizar(self):
+        """Maneja la acción de Crear o Actualizar."""
+        data = self._obtener_datos_formulario()
+        
+        if not data['nombre'] or not data['director'] or not data['telefono']:
+            self.display_message("❌ Nombre, director y teléfono son obligatorios.", False)
+            return
+
+        if self.ue_id_cargada:
+            # Modo edición/actualización
+            self.controller.handle_actualizar_ue(self.ue_id_cargada, data)
         else:
-            # Campo para ID
-            CTkLabel(frame_campos, text="🔢 ID UE:", font=("Arial", 16)).grid(row=0, column=0, padx=15, pady=20, sticky="e")
-            entry_id = CTkEntry(frame_campos, height=45, font=("Arial", 14))
-            entry_id.grid(row=0, column=1, padx=15, pady=20, sticky="ew")
+            # Modo creación
+            self.controller.handle_crear_ue(data)
             
-            current_entries["id"] = entry_id
-    
-    # Configurar el trace
-    opcion_busqueda.trace_add("write", lambda *args: mostrar_campos())
-    
-    # Mostrar campos iniciales
-    mostrar_campos()
-
-    def ejecutar_leer():
-        if opcion_busqueda.get() == "nombre_tipo":
-            nombre = current_entries["nombre"].get() if "nombre" in current_entries else ""
-            tipo = current_entries["tipo"].get() if "tipo" in current_entries else ""
-            if not nombre or not tipo:
-                mostrar_resultado(ventana, {"error": "❌ Debe ingresar nombre y tipo", "status": "error"})
-                return
-            resultado = leer(nombre=nombre, tipo=tipo.replace("🏛️ ", "").replace("💼 ", "").replace("🏢 ", ""))
-        else:
-            id_ue = current_entries["id"].get() if "id" in current_entries else ""
-            if not id_ue:
-                mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
-                return
-            resultado = leer(id=id_ue)
-        
-        mostrar_resultado(ventana, resultado)
-
-    # Frame para el botón
-    frame_boton = CTkFrame(ventana, fg_color="transparent")
-    frame_boton.grid(row=4, column=0, sticky="e", padx=30, pady=25)
-    
-    btn_leer = CTkButton(frame_boton, text="🔍 BUSCAR", command=ejecutar_leer,
-                        height=55, font=("Arial", 18, "bold"), fg_color="#3b8ed0", hover_color="#2d70a7")
-    btn_leer.pack(padx=15, pady=15)
-
-    # Configurar el peso de las filas
-    ventana.grid_rowconfigure(3, weight=1)
-
-def vista_actualizar():
-    ventana = CTkToplevel()
-    ventana.geometry("1200x800")
-    ventana.title("✏️ Actualizar Unidad Educativa")
-    ventana.configure(fg_color="#1e1e1e")
-    
-    # Configurar el grid principal
-    ventana.grid_columnconfigure(1, weight=1)
-    
-    # Frame para organizar mejor los elementos
-    main_frame = CTkFrame(ventana, fg_color="#2e2e2e")
-    main_frame.grid(row=0, column=0, columnspan=2, padx=30, pady=10, sticky="nsew")
-    main_frame.grid_columnconfigure(1, weight=1)
-
-    # Título
-    CTkLabel(main_frame, text="✏️ ACTUALIZAR UNIDAD EDUCATIVA", font=("Arial", 24, "bold")).grid(row=0, column=0, columnspan=2, pady=25)
-
-    # Campo ID obligatorio
-    CTkLabel(main_frame, text="🔢 ID de la UE a actualizar:", font=("Arial", 16)).grid(row=1, column=0, padx=15, pady=15, sticky="e")
-    entry_id = CTkEntry(main_frame, height=45, font=("Arial", 14))
-    entry_id.grid(row=1, column=1, padx=15, pady=15, sticky="ew")
-
-    # Separador
-    CTkLabel(main_frame, text="📝 Complete solo los campos a actualizar:", font=("Arial", 16)).grid(row=2, column=0, columnspan=2, pady=20)
-
-    # Campos opcionales para actualización
-    campos = {
-        "nombre": CTkEntry(main_frame, placeholder_text="🏫 Nuevo nombre", height=45, font=("Arial", 14)),
-        "nombre_director": CTkEntry(main_frame, placeholder_text="👨‍💼 Nuevo nombre del director", height=45, font=("Arial", 14)),
-        "tipo": CTkOptionMenu(main_frame, values=["", "🏛️ Pública", "💼 Privada", "🏢 Municipal"], height=45, font=("Arial", 14)),
-        "telefono": CTkEntry(main_frame, placeholder_text="📞 11 dígitos", height=45, font=("Arial", 14)),
-        "direccion": CTkEntry(main_frame, placeholder_text="📍 Nueva dirección", height=45, font=("Arial", 14))
-    }
-
-    # Posicionamiento de los campos
-    for i, (label_text, entry) in enumerate([
-        ("🏫 Nuevo Nombre UE:", campos["nombre"]),
-        ("👨‍💼 Nuevo Nombre Director:", campos["nombre_director"]),
-        ("🏛️ Nuevo Tipo UE:", campos["tipo"]),
-        ("📞 Nuevo Teléfono:", campos["telefono"]),
-        ("📍 Nueva Dirección:", campos["direccion"])
-    ], start=3):
-        CTkLabel(main_frame, text=label_text, font=("Arial", 16)).grid(row=i, column=0, padx=15, pady=15, sticky="e")
-        entry.grid(row=i, column=1, padx=15, pady=15, sticky="ew")
-
-    # Frame para el botón
-    button_frame = CTkFrame(ventana, fg_color="transparent")
-    button_frame.grid(row=1, column=0, columnspan=2, pady=25)
-
-    def ejecutar_actualizar():
-        id_ue = entry_id.get()
-        if not id_ue:
-            mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
-            return
-        
-        # Validar teléfono si se proporciona
-        telefono = campos["telefono"].get()
-        if telefono and (len(telefono) != 11 or not telefono.isdigit()):
-            mostrar_resultado(ventana, {"error": "❌ El teléfono debe tener exactamente 11 dígitos", "status": "error"})
-            return
-        
-        # Solo enviar campos que tengan contenido
-        datos_actualizar = {}
-        if campos["nombre"].get(): datos_actualizar["nombre"] = campos["nombre"].get()
-        if campos["nombre_director"].get(): datos_actualizar["director"] = campos["nombre_director"].get()
-        if campos["tipo"].get(): datos_actualizar["tipo"] = campos["tipo"].get().replace("🏛️ ", "").replace("💼 ", "").replace("🏢 ", "")
-        if telefono: datos_actualizar["telefono"] = telefono
-        if campos["direccion"].get(): datos_actualizar["direccion"] = campos["direccion"].get()
-        
-        if not datos_actualizar:
-            mostrar_resultado(ventana, {"error": "❌ No hay datos para actualizar", "status": "error"})
+    def _handle_buscar_id(self):
+        """Maneja la búsqueda por ID."""
+        id_str = self.buscar_id_var.get().strip()
+        if not id_str or not id_str.isdigit():
+            self.display_message("❌ Ingrese un ID numérico válido para buscar.", False)
+            self.controller.load_initial_data()
             return
             
-        resultado = actualizar(id_ue, **datos_actualizar)
-        mostrar_resultado(ventana, resultado)
+        self.controller.handle_buscar_ue(busqueda_id=int(id_str))
 
-    btn_actualizar = CTkButton(button_frame, text="✏️ ACTUALIZAR", command=ejecutar_actualizar,
-                              height=55, font=("Arial", 18, "bold"), fg_color="#f0b400", hover_color="#c79500")
-    btn_actualizar.pack(padx=15, pady=15)
-
-def vista_eliminar():
-    # Crear ventana para eliminar UE
-    ventana = CTkToplevel()
-    ventana.geometry("800x500")
-    ventana.title("🗑️ Eliminar Unidad Educativa")
-    ventana.configure(fg_color="#1e1e1e")
-
-    frame_principal = CTkFrame(ventana, fg_color="#2e2e2e")
-    frame_principal.pack(expand=True, fill="both", padx=40, pady=40)
-
-    CTkLabel(frame_principal, text="🗑️ ELIMINAR UNIDAD EDUCATIVA", 
-             font=("Arial", 24, "bold")).pack(pady=10)
-
-    CTkLabel(frame_principal, text="🔢 ID de la UE a eliminar:", 
-             font=("Arial", 18)).pack(pady=20)
-    
-    entry_id = CTkEntry(frame_principal, height=50, font=("Arial", 16))
-    entry_id.pack(pady=20, padx=50, fill="x")
-
-    def ejecutar_eliminar():
-        id_ue = entry_id.get()
-        if not id_ue:
-            mostrar_resultado(ventana, {"error": "❌ Debe ingresar un ID", "status": "error"})
+    def _handle_buscar_nombre(self):
+        """Maneja la búsqueda por Nombre."""
+        nombre_str = self.buscar_nombre_var.get().strip()
+        if not nombre_str:
+            self.controller.load_initial_data() # Listar todos si la búsqueda está vacía
             return
-        
-        # Confirmación
-        confirmacion = CTkToplevel(ventana)
-        confirmacion.title("⚠️ Confirmar Eliminación")
-        confirmacion.geometry("500x300")
-        confirmacion.configure(fg_color="#1e1e1e")
-        
-        CTkLabel(confirmacion, text=f"¿Está seguro de eliminar la Unidad Educativa con ID {id_ue}?", 
-                font=("Arial", 16), wraplength=400).pack(pady=40)
-        
-        def confirmar():
-            resultado = eliminar(id_ue)
-            mostrar_resultado(ventana, resultado)
-            confirmacion.destroy()
-        
-        frame_botones = CTkFrame(confirmacion, fg_color="transparent")
-        frame_botones.pack(pady=10)
-        
-        CTkButton(frame_botones, text="✅ Sí, Eliminar", command=confirmar, 
-                 fg_color="#e74c3c", hover_color="#c0392b", height=45, font=("Arial", 16)).pack(side="left", padx=20)
-        CTkButton(frame_botones, text="❌ Cancelar", command=confirmacion.destroy,
-                 height=45, font=("Arial", 16)).pack(side="right", padx=20)
+            
+        self.controller.handle_buscar_ue(busqueda_nombre=nombre_str)
 
-    btn_eliminar = CTkButton(frame_principal, text="🗑️ ELIMINAR UNIDAD EDUCATIVA", command=ejecutar_eliminar,
-                            height=55, font=("Arial", 18, "bold"), fg_color="#e74c3c", hover_color="#c0392b")
-    btn_eliminar.pack(pady=10)
+    def _handle_eliminar(self):
+        """Maneja la eliminación (requiere confirmación)."""
+        if not self.ue_id_cargada:
+            self.display_message("❌ Primero debe cargar una Unidad Educativa para eliminar.", False)
+            return
+            
+        if messagebox.askyesno("Confirmar Eliminación", 
+                               f"¿Está seguro de eliminar la Unidad Educativa ID {self.ue_id_cargada}? Esta acción es irreversible (eliminación lógica)."):
+            self.controller.handle_eliminar_ue(self.ue_id_cargada)
+
+    def _on_treeview_select(self, event):
+        """Carga los datos del elemento seleccionado en el Treeview al formulario."""
+        selected_item = self.treeview.focus()
+        if not selected_item:
+            return
+            
+        # Obtener los valores de la fila seleccionada (ID es el primer valor)
+        values = self.treeview.item(selected_item, 'values')
+        if values:
+            try:
+                id_ue = int(values[0])
+                # Delegar la carga completa al controlador
+                self.controller.handle_cargar_ue_para_edicion(id_ue)
+            except ValueError:
+                self.display_message("Error: ID no válido en la selección.", False)
+
+    # ----------------------------------------------------------------------
+    # Métodos de Mutación de Vista (Llamados por el Controlador)
+    # ----------------------------------------------------------------------
+
+    def _obtener_datos_formulario(self) -> Dict[str, Any]:
+        """Recopila los datos del formulario."""
+        return {
+            "nombre": self.nombre_var.get().strip(),
+            "director": self.director_var.get().strip(),
+            "tipo": self.tipo_var.get(),
+            "telefono": self.telefono_var.get().strip(),
+            "direccion": self.direccion_var.get().strip()
+        }
+        
+    def _establecer_datos_formulario(self, data: Dict[str, Any], id_ue: Optional[int]):
+        """Establece los valores en los campos de entrada y configura el modo edición."""
+        self.ue_id_cargada = id_ue
+        self.nombre_var.set(data.get("nombre", ""))
+        self.director_var.set(data.get("director", ""))
+        self.tipo_var.set(data.get("tipo", "Pública"))
+        self.telefono_var.set(data.get("telefono", ""))
+        self.direccion_var.set(data.get("direccion", ""))
+        
+        # Cambiar el texto del botón y habilitar eliminar
+        self.btn_crear.configure(text="💾 Guardar Cambios", fg_color="#3498db", hover_color="#2980b9")
+        self.btn_eliminar.configure(state="normal")
+        
+    def limpiar_formulario(self):
+        """Limpia todos los campos del formulario y vuelve al modo creación."""
+        self.ue_id_cargada = None
+        self.nombre_var.set("")
+        self.director_var.set("")
+        self.tipo_var.set("Pública")
+        self.telefono_var.set("")
+        self.direccion_var.set("")
+        self.buscar_id_var.set("")
+        self.buscar_nombre_var.set("")
+        
+        # Restaurar el texto del botón y deshabilitar eliminar
+        self.btn_crear.configure(text="➕ Registrar", fg_color="#2ecc71", hover_color="#27ae60")
+        self.btn_eliminar.configure(state="disabled")
+        self.display_message("") # Limpiar mensaje
+
+    def display_list(self, data: List[Dict[str, Any]]):
+        """Muestra la lista de Unidades Educativas en el Treeview."""
+        # Limpiar tabla
+        for item in self.treeview.get_children():
+            self.treeview.delete(item)
+            
+        if not data:
+            return
+
+        for item in data:
+            # Insertar los campos relevantes en el orden de las columnas
+            values = (
+                item.get('id', 'N/A'),
+                item.get('nombre', ''),
+                item.get('director', ''),
+                item.get('tipo', ''),
+                item.get('telefono', '')
+            )
+            self.treeview.insert('', 'end', values=values)
+
+    def display_message(self, message: str, is_success: bool = True):
+        """Muestra un mensaje de estado en la interfaz."""
+        color = "#2ecc71" if is_success else "#e74c3c"
+        self.message_label.configure(text=message, text_color=color)
+
+# ======================================================================
+# 4. Clase principal para ejecutar la aplicación de ejemplo
+# ======================================================================
+
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        
+        self.title("Sistema de Gestión Educativa - Mock View")
+        self.geometry("1000x700")
+        ctk.set_appearance_mode("Dark") # Establecer tema oscuro
+        
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        
+        # Inicializar el controlador (Mock en este caso)
+        controller = UnidadEducativaControlador() 
+        
+        # Crear y mostrar la vista
+        self.view = UnidadEducativaViewFrame(self, controller)
+        self.view.grid(row=0, column=0, sticky="nsew")
+        
+        # Cargar datos iniciales al inicio
+        self.after(100, self.view.show)
 
 if __name__ == "__main__":
-    main()
+    app = App()
+    app.mainloop()

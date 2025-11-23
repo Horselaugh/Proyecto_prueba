@@ -10,7 +10,6 @@ ctk.set_default_color_theme("blue")
 # CLASE VISTA (LoginView)
 # ----------------------------------------------------------------------
 
-# Renombrado de LoginApp a LoginView
 class LoginView(ctk.CTk):
     """La interfaz gráfica de la ventana de Login, que interactúa con LoginController."""
 
@@ -48,7 +47,7 @@ class LoginView(ctk.CTk):
                                          text_color="#1f6aa5")
         self.register_label.pack(pady=12, padx=10)
         self.register_label.bind("<Button-1>", lambda e: self.registro())
-
+        
     def center_window(self):
         """Centrar la ventana en la pantalla"""
         self.update_idletasks()
@@ -57,6 +56,7 @@ class LoginView(ctk.CTk):
         x = (self.winfo_screenwidth() // 2) - (width // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f'{width}x{height}+{x}+{y}')
+
 
     def login(self):
         """Llama al controlador para procesar el login."""
@@ -67,12 +67,14 @@ class LoginView(ctk.CTk):
             messagebox.showerror("Error", "Por favor, complete todos los campos")
             return
 
-        # Pasa la responsabilidad al controlador
-        # El controlador es ahora responsable de limpiar el campo de contraseña y cerrar la ventana.
+        # Pasa la responsabilidad al controlador (incluyendo la limpieza y el cierre)
         self.controller.handle_login(usuario, password) 
         
+        # NOTA: La limpieza de la contraseña se movió al controlador para evitar el TclError.
+        
+
     def registro(self):
-        # **CORRECCIÓN:** Implementación de la ventana de registro que llama al controlador.
+        # Implementación completa de la ventana de registro
         register_window = ctk.CTkToplevel(self) 
         register_window.title("Registro")
         register_window.geometry("400x400")

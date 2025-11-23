@@ -2,25 +2,76 @@ import customtkinter as ctk
 from tkinter import messagebox
 import sys
 import os
+from typing import Dict
+
 
 # ----------------------------------------------------------------------
-# Configuración de Paths e Importaciones
+# MOCK DE MODELO (TEMPORAL)
 # ----------------------------------------------------------------------
-# Asegura que el path del proyecto sea accesible para importar el modelo y el controlador
-try:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(current_dir)
-    if project_root not in sys.path:
-        sys.path.append(project_root)
-except NameError:
-    pass
+# MOCK TEMPORAL: Necesario para que el Controlador pueda inicializar su propiedad 'modelo'
+class MockArticuloModelo:
+    def insertar_articulo(self, codigo, articulo, descripcion): 
+        return 1 if codigo != "EXISTE" else 0
+    def buscar_articulo(self, termino_busqueda): 
+        if termino_busqueda == "123":
+            # Simula un objeto Row
+            data = {"id": 1, "codigo": "123", "articulo": "Derecho a la Vida", "descripcion": "Todo niño tiene derecho a la vida..."}
+            return type('MockRow', (dict,), data)
+        return None
+    def modificar_articulo(self, articulo_id, codigo, articulo, descripcion): 
+        return True
+    def eliminar_articulo(self, articulo_id): 
+        return True
+    # Añadir un mock para listar si fuera necesario, aunque la vista no lo usa directamente
+    def obtener_todos_los_articulos(self):
+        return []
 
-class ArticuloVista(ctk.CTkFrame):
-    
-    # MODIFICACIÓN CLAVE: Recibir el master (el frame contenedor en MenuApp) y el controller
-    def __init__(self, master, controller=None):
-        super().__init__(master, fg_color="transparent") # Inicializa como un frame dentro de master
+# ----------------------------------------------------------------------
+# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
+# ----------------------------------------------------------------------
+# Este mock solo necesita los métodos que la vista llama directamente.
+class ArticuloControlador:
+    def __init__(self):
+        self.modelo = MockArticuloModelo() 
+        self.vista = None
+        print("ADVERTENCIA: Usando Mock ArticuloControlador. Reemplace con el controlador real en menu.py.")
+
+    def set_view(self, view_instance):
+        self.vista = view_instance
         
+    def load_initial_data(self):
+        self.vista.display_message("Listo para gestionar Artículos LOPNNA. Use el campo de búsqueda para empezar. 🔎", is_success=True)
+
+    # Delegación de manejo de eventos al controlador (métodos dummy para el mock)
+    def handle_crear_articulo(self, *args): self.vista.display_message("Mock: Crear artículo", True)
+    def handle_buscar_articulo(self, termino): 
+        resultado = self.modelo.buscar_articulo(termino)
+        if resultado:
+            self.vista._establecer_datos_formulario(resultado)
+        else:
+            self.vista.display_message("Mock: Artículo no encontrado", False)
+            self.vista.limpiar_entradas()
+    def handle_modificar_articulo(self, *args): self.vista.display_message("Mock: Modificar artículo", True)
+    def handle_eliminar_articulo(self, *args): self.vista.display_message("Mock: Eliminar artículo", True)
+
+
+# ----------------------------------------------------------------------
+# CLASE DE VISTA ADAPTADA
+# ----------------------------------------------------------------------
+
+class ArticuloViewFrame(ctk.CTkFrame):
+    """
+    Vista para el módulo de gestión de Artículos LOPNNA. 
+    Hereda de CTkFrame para ser cargado en el panel de contenido de MenuApp.
+    """
+    
+    # MODIFICACIÓN CLAVE: Recibir el master y el controller
+    def __init__(self, master, controller: ArticuloControlador):
+        super().__init__(master, corner_radius=0, fg_color="transparent") 
+        
+        self.controller = controller 
+        # La Vista se registra en el Controlador para que este pueda actualizarla
+        self.controller.set_view(self) 
         
         self.articulo_id_cargado = None
         
@@ -30,16 +81,19 @@ class ArticuloVista(ctk.CTkFrame):
         self.articulo_var = ctk.StringVar(self)
         self.descripcion_var = ctk.StringVar(self)
         
-        self.crear_interfaz()
-        
-        # Se llama a los métodos de obtención inicial solo si el controlador real lo permite.
-        # En este contexto, ArticuloVista no maneja una lista visible, por lo que no es necesario.
-        
-    def crear_interfaz(self):
-        # Frame principal - Ya es ArticuloVista (self) que hereda de ctk.CTkFrame
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
+        
+        self._configurar_interfaz() # Renombrado de crear_interfaz a _configurar_interfaz
 
+    # MÉTODO CLAVE: Requerido por la estructura de menu.py
+    def show(self):
+        """Llamado por MenuApp, invoca la carga de datos iniciales del controlador."""
+        self.controller.load_initial_data() 
+
+    def _configurar_interfaz(self):
+        """Configura la interfaz gráfica dentro de este frame."""
+        
         # Título y Mensajes
         self.title_label = ctk.CTkLabel(self, text="📦 GESTIÓN DE ARTÍCULOS LOPNNA", 
                                         font=ctk.CTkFont(size=24, weight="bold"))
@@ -63,7 +117,8 @@ class ArticuloVista(ctk.CTkFrame):
         search_entry = ctk.CTkEntry(search_frame, textvariable=self.buscar_var, placeholder_text="Ingrese Código...", height=40)
         search_entry.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 10))
         
-        ctk.CTkButton(search_frame, text="🔍 Buscar", command=self.buscar_articulo, height=40,
+        # DELEGACIÓN: El botón llama a un método de la vista que invoca al controlador
+        ctk.CTkButton(search_frame, text="🔍 Buscar", command=self._handle_buscar_articulo, height=40,
                       fg_color="#3498db", hover_color="#2980b9").grid(row=1, column=1, padx=(10, 0), pady=(0, 10))
 
         # Separador
@@ -93,74 +148,64 @@ class ArticuloVista(ctk.CTkFrame):
         button_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
         button_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="ew")
         
-        # Botones
-        ctk.CTkButton(button_frame, text="➕ Agregar", command=self.crear_articulo, height=45, 
+        # Botones (Delegación de eventos al controlador a través de métodos de la vista)
+        ctk.CTkButton(button_frame, text="➕ Agregar", command=self._handle_crear_articulo, height=45, 
                       fg_color="#2ecc71", hover_color="#27ae60", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
-        ctk.CTkButton(button_frame, text="✏️ Modificar", command=self.modificar_articulo, height=45, 
-                      fg_color="#f39c12", hover_color="#e67e22", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
-        ctk.CTkButton(button_frame, text="🗑️ Eliminar", command=self.eliminar_articulo, height=45, 
-                      fg_color="#e74c3c", hover_color="#c0392b", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
+        
+        self.btn_modificar = ctk.CTkButton(button_frame, text="✏️ Modificar", command=self._handle_modificar_articulo, height=45, 
+                      fg_color="#f39c12", hover_color="#e67e22", font=ctk.CTkFont(size=16, weight="bold"), state="disabled")
+        self.btn_modificar.pack(side="left", expand=True, fill="x", padx=5)
+        
+        self.btn_eliminar = ctk.CTkButton(button_frame, text="🗑️ Eliminar", command=self._handle_eliminar_articulo, height=45, 
+                      fg_color="#e74c3c", hover_color="#c0392b", font=ctk.CTkFont(size=16, weight="bold"), state="disabled")
+        self.btn_eliminar.pack(side="left", expand=True, fill="x", padx=5)
+        
         ctk.CTkButton(button_frame, text="🧹 Limpiar", command=self.limpiar_entradas, height=45, 
                       fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
 
     # ----------------------------------------------------------------------
-    # Métodos de Eventos (Controlador)
+    # Métodos de Eventos (Delegación al Controlador)
     # ----------------------------------------------------------------------
     
-    def crear_articulo(self):
+    def _handle_crear_articulo(self):
         data = self._obtener_datos_formulario()
-        resultado = self.controller.crear_articulo(data["codigo"], data["articulo"], data["descripcion"])
-        self.display_message(resultado["message"], is_success=(resultado["status"] == "success"))
-        if resultado["status"] == "success":
-            self.limpiar_entradas()
+        self.controller.handle_crear_articulo(data["codigo"], data["articulo"], data["descripcion"])
             
-    def buscar_articulo(self):
+    def _handle_buscar_articulo(self):
         termino = self.buscar_var.get()
-        if not termino:
-            self.display_message("❌ Ingrese un código para buscar.", is_success=False)
-            return
+        self.controller.handle_buscar_articulo(termino)
             
-        resultado = self.controller.buscar_articulo(termino)
-        self.display_message(resultado["message"], is_success=(resultado["status"] == "success"))
-        
-        if resultado["status"] == "success":
-            data = resultado["data"]
-            self._establecer_datos_formulario(data)
-            self.articulo_id_cargado = data["id"]
-        else:
-            self.limpiar_entradas()
-            self.articulo_id_cargado = None
-            
-    def modificar_articulo(self):
+    def _handle_modificar_articulo(self):
         if not self.articulo_id_cargado:
             self.display_message("❌ Primero debe buscar y cargar un artículo para modificarlo.", is_success=False)
             return
 
         data = self._obtener_datos_formulario()
-        resultado = self.controller.modificar_articulo(self.articulo_id_cargado, 
-                                                       data["codigo"], data["articulo"], 
-                                                       data["descripcion"])
-        
-        self.display_message(resultado["message"], is_success=(resultado["status"] == "success"))
-        if resultado["status"] == "success":
-            self.limpiar_entradas()
-            self.articulo_id_cargado = None
+        self.controller.handle_modificar_articulo(self.articulo_id_cargado, 
+                                                  data["codigo"], data["articulo"], 
+                                                  data["descripcion"])
             
-    def eliminar_articulo(self):
+    def _handle_eliminar_articulo(self):
         if not self.articulo_id_cargado:
             self.display_message("❌ Primero debe buscar y cargar un artículo para eliminarlo.", is_success=False)
             return
             
-        # Nota: Idealmente se usaría un modal de confirmación aquí, no messagebox
         if messagebox.askyesno("⚠️ Confirmación", "¿Está seguro de que desea eliminar este artículo?"):
-            resultado = self.controller.eliminar_articulo(self.articulo_id_cargado)
-            
-            self.display_message(resultado["message"], is_success=(resultado["status"] == "success"))
-            if resultado["status"] == "success":
-                self.limpiar_entradas()
-                self.articulo_id_cargado = None
+            self.controller.handle_eliminar_articulo(self.articulo_id_cargado)
     
-    # --- Métodos de Ayuda ---
+    # ----------------------------------------------------------------------
+    # Métodos de Mutación de Vista (Llamados por el Controlador)
+    # ----------------------------------------------------------------------
+
+    def limpiar_entradas(self): 
+        """Limpia todos los campos del formulario."""
+        self.buscar_var.set("")
+        self.codigo_var.set("")
+        self.articulo_var.set("")
+        self.desc_textbox.delete("1.0", "end")
+        self.articulo_id_cargado = None
+        self._set_btn_state("disabled")
+        self.display_message("") # Limpiar el mensaje de estado
 
     def _obtener_datos_formulario(self): 
         """Recolecta los datos de los campos de entrada."""
@@ -171,28 +216,20 @@ class ArticuloVista(ctk.CTkFrame):
         }
         
     def _establecer_datos_formulario(self, data: dict): 
-        """Establece los valores en los campos de entrada."""
+        """Establece los valores en los campos de entrada y habilita botones."""
         self.codigo_var.set(data.get("codigo", ""))
         self.articulo_var.set(data.get("articulo", ""))
         self.desc_textbox.delete("1.0", "end")
         self.desc_textbox.insert("1.0", data.get("descripcion", ""))
+        self.articulo_id_cargado = data.get("id")
+        self._set_btn_state("normal")
         
-    def limpiar_entradas(self): 
-        """Limpia todos los campos del formulario."""
-        self.buscar_var.set("")
-        self.codigo_var.set("")
-        self.articulo_var.set("")
-        self.desc_textbox.delete("1.0", "end")
-        self.articulo_id_cargado = None
-        self.display_message("") # Limpiar el mensaje de estado
+    def _set_btn_state(self, state):
+        """Habilita o deshabilita los botones de Modificar/Eliminar."""
+        self.btn_modificar.configure(state=state)
+        self.btn_eliminar.configure(state=state)
         
     def display_message(self, message: str, is_success: bool = True):
         """Muestra un mensaje de estado en la interfaz."""
         color = "#2ecc71" if is_success else "#e74c3c"
         self.message_label.configure(text=message, text_color=color)
-
-# ----------------------------------------------------------------------
-# ELIMINACIÓN DEL BLOQUE MAIN
-# ----------------------------------------------------------------------
-# Se elimina el bloque if __name__ == "__main__": main()
-# para que el módulo solo exporte la clase ArticuloVista.

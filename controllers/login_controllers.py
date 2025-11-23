@@ -21,8 +21,7 @@ class LoginController:
         if role:
             msg.showinfo("Acceso concedido", f"Bienvenido {username}. Rol: {role}")
             
-            # **CORRECCIÓN:** Limpiar la contraseña ANTES de cerrar la vista.
-            # Esto evita el error TclError porque el widget sigue "vivo".
+            # CORRECCIÓN para evitar TclError: Limpiar el campo ANTES de llamar a self.view.quit()
             self.view.password_entry.delete(0, 'end') 
             
             # 2. Detiene el bucle principal de la ventana de login
@@ -36,7 +35,6 @@ class LoginController:
     # MÉTODO AÑADIDO para manejar el registro
     def handle_registration(self, username, password, role="user"):
         """Maneja el intento de registro, usa el Modelo para añadir el usuario."""
-        # Se añade un rol por defecto si no se especifica uno, aquí 'user'
         if self.model.users.get(username):
             return False # Usuario ya existe
         
@@ -44,5 +42,6 @@ class LoginController:
             self.model.add_user(username, password, role)
             return True
         except Exception as e:
+            # En una aplicación real, se manejaría un error de base de datos aquí.
             print(f"Error al registrar usuario: {e}") 
             return False
