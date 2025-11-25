@@ -11,8 +11,7 @@ import importlib
 # Configurar el path para importaciones
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # CORRECCIÓN: Subir solo un nivel para alcanzar la raíz del proyecto
-    # (asumiendo que views/ y controllers/ están en el mismo nivel, bajo project_root)
+    # Subir solo un nivel para alcanzar la raíz del proyecto
     project_root = os.path.dirname(current_dir) 
     
     if project_root not in sys.path:
@@ -35,81 +34,89 @@ ctk.set_default_color_theme("blue")
 
 
 # ----------------------------------------------------------------------
-# MAPPING DE VISTAS (CORRECCIÓN DE RUTAS DE CONTROLADOR)
+# MAPPING DE VISTAS Y CONTROLADORES (Actualizado con Denuncias)
 # ----------------------------------------------------------------------
 
 MODULE_PATHS = {
     # NNA
     "gestion_nna": {
-        "view_module": "funcion_vista_nna",          
-        "view_class": "NNAViewFrame",                 
-        "controller_module": "controllers.nna_controller",      # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "NNAControlador"          
+        "view_module": "funcion_vista_nna", 
+        "view_class": "NNAViewFrame", 
+        "controller_module": "controllers.nna_controller", 
+        "controller_class": "NNAControlador" 
     },
     
     # Familiares
     "gestion_familiares": {
         "view_module": "funcion_vista_fami", 
-        "view_class": "FamiliarViewFrame",            
-        "controller_module": "controllers.familiar_controller", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "FamiliarControlador"        
+        "view_class": "FamiliarViewFrame", 
+        "controller_module": "controllers.familiar_controller", 
+        "controller_class": "FamiliarControlador" 
     },
     
     # UE (Unidad de Ejecución/Entidad)
     "gestion_ue": {
         "view_module": "funcion_vista_ue", 
-        "view_class": "UnidadEducativaViewFrame",        
-        "controller_module": "controllers.unidad_educativa_controller", # ✅ CLAVE Y RUTA CORRECTA
+        "view_class": "UnidadEducativaViewFrame", 
+        "controller_module": "controllers.unidad_educativa_controller", 
         "controller_class": "UnidadEducativaControlador" 
     },
     
     # Matrículas
     "gestion_matriculas": {
         "view_module": "funcion_vista_matricula", 
-        "view_class": "MatriculaViewFrame",             
-        "controller_module": "controllers.matricula_controller", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "MatriculaControlador"       
+        "view_class": "MatriculaViewFrame", 
+        "controller_module": "controllers.matricula_controller", 
+        "controller_class": "MatriculaControlador" 
     },
     
     # Artículos
     "gestion_articulos": {
         "view_module": "funcion_vista_art",
-        "view_class": "ArticuloViewFrame",             
-        "controller_module": "controllers.articulo_controller", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "ArticuloControlador"       
+        "view_class": "ArticuloViewFrame", 
+        "controller_module": "controllers.articulo_controller", 
+        "controller_class": "ArticuloControlador" 
     },
     
     # Personal
     "gestion_personal": {
         "view_module": "funcion_vista_personal", 
-        "view_class": "PersonalViewFrame",             
-        "controller_module": "controllers.personal_controller", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "PersonalControlador"        
+        "view_class": "PersonalViewFrame", 
+        "controller_module": "controllers.personal_controller", 
+        "controller_class": "PersonalControlador" 
     },
-    
-    # Configuración
-    "configuracion": {
-        "view_module": "configuracion_view",
-        "view_class": "ConfiguracionViewFrame",         
-        "controller_module": "controllers.configuracion_controller", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "ConfiguracionControlador"   
-    },
-    
-    # Reportes
-    "reportes": {
-        "view_module": "reportes_view", 
-        "view_class": "ReportesViewFrame",                  
-        "controller_module": "controllers.reportes_controller", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "ReportesControlador"      
-    }, 
     
     # Seguimiento de Expedientes
     "seguimiento_expedientes": {
         "view_module": "funcion_vista_seguimiento_expedientes", 
         "view_class": "SeguimientoExpedienteViewFrame", 
-        "controller_module": "controllers.seguimiento_expediente_controllers", # ✅ CLAVE Y RUTA CORRECTA
-        "controller_class": "SeguimientoExpedienteControlador"     
+        "controller_module": "controllers.seguimiento_expediente_controllers", 
+        "controller_class": "SeguimientoExpedienteControlador" 
     }, 
+
+    # Denuncias (NUEVO MÓDULO)
+    "gestion_denuncias": {
+        "view_module": "funcion_vista_denuncia", # Nombre del archivo de vista proporcionado
+        "view_class": "DenunciaViewFrame", 
+        "controller_module": "controllers.denuncia_controller", 
+        "controller_class": "DenunciaControlador" 
+    },
+    
+    # Reportes
+    "reportes": {
+        "view_module": "reportes_view", 
+        "view_class": "ReportesViewFrame", 
+        "controller_module": "controllers.reportes_controller", 
+        "controller_class": "ReportesControlador" 
+    }, 
+    
+    # Configuración
+    "configuracion": {
+        "view_module": "configuracion_view",
+        "view_class": "ConfiguracionViewFrame", 
+        "controller_module": "controllers.configuracion_controller", 
+        "controller_class": "ConfiguracionControlador" 
+    },
 }
 
 class BaseViewFrame(ctk.CTkFrame):
@@ -123,11 +130,13 @@ class BaseViewFrame(ctk.CTkFrame):
 
     def show(self):
         """Método para cargar datos o actualizar la vista."""
+        # Se puede sobreescribir en vistas específicas para recargar datos
         pass
 
 class MenuInicioFrame(BaseViewFrame):
     """Vista de inicio simple."""
     def __init__(self, master, controller):
+        # La vista de inicio no usa un controlador MVC, usa el MenuApp como controller
         super().__init__(master, controller)
         self.configure(fg_color="transparent")
         
@@ -161,11 +170,11 @@ class MenuInicioFrame(BaseViewFrame):
 class MenuApp(ctk.CTk):
     def __init__(self, role=None):
         super().__init__()
-        self.role = role # Almacenar el rol
+        self.role = role 
         self.title(f"🏛️ Sistema de Gestión LOPNNA - Consejo de Protección Carrizal ({role if role else 'Invitado'})") 
         self.geometry("1400x900")
         self.minsize(1200, 800)
-        self.center_window()
+        self.center_window() # Asegura la posición inicial centrada
         
         self._frames = {} 
         self._controllers = {}
@@ -176,24 +185,27 @@ class MenuApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
     def setup_main_layout(self):
+        # Configuración de Responsividad (Columna 0 fija, Columna 1 expansiva)
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=0) 
-        self.grid_columnconfigure(1, weight=1) 
+        self.grid_columnconfigure(0, weight=0) # Sidebar: No se expande
+        self.grid_columnconfigure(1, weight=1) # Content: Se expande
 
+        # --- Sidebar Frame (Columna 0) ---
         self.sidebar_frame = ctk.CTkFrame(self, 
-                                          width=280, 
+                                          width=280, # Ancho fijo para el sidebar
                                           corner_radius=0, 
-                                          fg_color="#2c3e50")
+                                          fg_color="#111111")
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(10, weight=1)
+        self.sidebar_frame.grid_rowconfigure(10, weight=1) # Espacio para empujar los botones inferiores
         
         ctk.CTkLabel(self.sidebar_frame, 
                      text="🏛️ SISTEMA LOPNNA", 
                      font=("Arial", 18, "bold"), 
                      text_color="#f1c40f").grid(row=0, column=0, padx=20, pady=(20, 10))
         
-        ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="#34495e").grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 15))
+        ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="#111111").grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 15))
 
+        # --- Main Content Frame (Columna 1) ---
         self.main_content_frame = ctk.CTkFrame(self, corner_radius=0)
         self.main_content_frame.grid(row=0, column=1, sticky="nsew")
         self.main_content_frame.grid_rowconfigure(0, weight=1)
@@ -212,6 +224,7 @@ class MenuApp(ctk.CTk):
             {"text": "Gestión de Artículos", "command": "gestion_articulos", "emoji": "📦"},
             {"text": "Gestión de Personal", "command": "gestion_personal", "emoji": "👥"},
             {"text": "Seguimiento Expedientes", "command": "seguimiento_expedientes", "emoji": "📌"},
+            {"text": "Gestión de Denuncias", "command": "gestion_denuncias", "emoji": "🚨"}, # NUEVO
             {"text": "Reportes y Estadísticas", "command": "reportes", "emoji": "📊"},
             {"text": "Configuración del Sistema", "command": "configuracion", "emoji": "⚙️"},
         ]
@@ -228,8 +241,10 @@ class MenuApp(ctk.CTk):
                 font=("Arial", 14, "bold"),
                 anchor="w"
             )
+            # Los botones se colocan a partir de la fila 2
             button.grid(row=i + 2, column=0, padx=15, pady=5, sticky="ew")
 
+        # Botones de Ayuda y Salir, empujados hacia abajo por el weight=1 en la fila 10
         ctk.CTkButton(
             self.sidebar_frame,
             text="❓ Ayuda",
@@ -262,6 +277,7 @@ class MenuApp(ctk.CTk):
         # 1. Manejar Inicio
         if module_name == "menu_inicio":
             if module_name not in self._frames:
+                # El frame de inicio usa MenuApp como su controlador
                 frame = MenuInicioFrame(self.main_content_frame, self)
                 self._frames[module_name] = frame
         
@@ -281,12 +297,9 @@ class MenuApp(ctk.CTk):
                 controller_class_name = info.get('controller_class') 
                 
                 if not view_module_path or not view_class_name:
-                    # Resuelve el error "Falta 'view_module' o 'view_class'"
                     raise ValueError(f"Falta 'view_module' o 'view_class' en la configuración de {module_name}.")
 
                 # 1. Cargar el Módulo de la Vista
-                # Nota: Si el view_module también está en la carpeta 'views', funcionará
-                # gracias a que 'views_dir' se añadió a sys.path.
                 view_module = importlib.import_module(view_module_path) 
                 ViewClass = getattr(view_module, view_class_name)
 
@@ -294,7 +307,6 @@ class MenuApp(ctk.CTk):
                     # 🔴 MÓDULO MVC COMPLETO (Controlador Externo)
                     
                     # 2. Cargar el Módulo del Controlador
-                    # Aquí se usa la ruta completa: 'controllers.nna_controller'
                     controller_module = importlib.import_module(controller_module_path)
                     ControllerClass = getattr(controller_module, controller_class_name)
 
@@ -306,6 +318,7 @@ class MenuApp(ctk.CTk):
                     controller_instance = self._controllers[module_name]
                     
                     # 4. Instanciar la Vista, pasándole el Controlador Real
+                    # Se asume que todas las vistas del MVC reciben un controlador
                     frame = ViewClass(self.main_content_frame, controller_instance)
                     
                 else:
@@ -318,8 +331,8 @@ class MenuApp(ctk.CTk):
                 frame.grid(row=0, column=0, sticky="nsew")
 
             except ImportError as e:
-                # Si falla, es porque la ruta del controlador (controllers.nombre_modulo) no se resolvió
-                msg_error = f"No se pudo importar el módulo: {module_name}. Verifique que el archivo del Controlador ({controller_module_path}.py) exista en la carpeta 'controllers/' dentro de la raíz del proyecto.\nError detallado: {e}"
+                # Si falla, es porque la ruta del controlador/vista no se resolvió
+                msg_error = f"No se pudo importar el módulo: {module_name}. Verifique que el archivo del Controlador ({controller_module_path}.py) y/o la Vista ({view_module_path}.py) existan y estén en la ruta del proyecto.\nError detallado: {e}"
                 messagebox.showerror("❌ Error de Importación", msg_error)
                 print(f"Error de Importación del módulo {module_name}: {e}")
                 return 
@@ -333,7 +346,7 @@ class MenuApp(ctk.CTk):
         current_frame = self._frames[module_name]
         current_frame.grid(row=0, column=0, sticky="nsew")
         
-        # Llamar al método show.
+        # Llamar al método show para cargar o refrescar datos (si aplica)
         current_frame.show() 
         
         print(f"Vista cargada en panel lateral: {module_name}")
@@ -342,9 +355,19 @@ class MenuApp(ctk.CTk):
         self.update_idletasks()
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-        x = (screen_width - 1400) // 2
-        y = (screen_height - 900) // 2
-        self.geometry(f'1400x900+{x}+{y}')
+        # Usa un tamaño inicial de 1400x900 si cabe, sino ajusta al centro
+        app_width = 1200
+        app_height = 1000
+        
+        if app_width > screen_width:
+            app_width = screen_width
+        if app_height > screen_height:
+            app_height = screen_height
+            
+        x = (screen_width - app_width) // 2
+        y = (screen_height - app_height) // 2
+        
+        self.geometry(f'{app_width}x{app_height}+{x}+{y}')
 
     def mostrar_ayuda(self):
         ayuda_texto = """
@@ -355,6 +378,7 @@ Este sistema permite la administración integral de:
 - Unidades Educativas
 - Matrículas, Artículos y Personal
 - Seguimiento de Expedientes
+- Gestión de Denuncias
 - Reportes
 """
         messagebox.showinfo("❓ Ayuda del Sistema", ayuda_texto)
