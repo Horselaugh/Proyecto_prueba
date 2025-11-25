@@ -286,7 +286,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.rol_list_frame.columnconfigure(0, weight=1)
 
         # 2. Formulario de Creación/Edición de Roles
-        self.rol_form_frame = ctk.CTkFrame(tab_frame, fg_color="#3c3c3c", corner_radius=10)
+        self.rol_form_frame = ctk.CTkFrame(tab_frame, fg_color="#111111", corner_radius=10)
         self.rol_form_frame.grid(row=0, column=1, sticky="nwe", padx=10, pady=10)
         self.rol_form_frame.columnconfigure(0, weight=1)
 
@@ -414,7 +414,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.usuario_list_frame.columnconfigure(0, weight=1)
 
         # 2. Formulario de Creación/Edición de Usuarios
-        self.usuario_form_frame = ctk.CTkFrame(tab_frame, fg_color="#3c3c3c", corner_radius=10)
+        self.usuario_form_frame = ctk.CTkFrame(tab_frame, fg_color="#111111", corner_radius=10)
         self.usuario_form_frame.grid(row=0, column=1, sticky="nwe", padx=10, pady=10)
         self.usuario_form_frame.columnconfigure(0, weight=1)
 

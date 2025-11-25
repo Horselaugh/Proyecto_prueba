@@ -56,7 +56,7 @@ class NNAViewFrame(ctk.CTkFrame):
         self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
 
         # Contenedor principal scrollable para el formulario largo
-        scroll_frame = ctk.CTkScrollableFrame(self, fg_color="#3c3c3c", corner_radius=10, label_text="DATOS PERSONALES")
+        scroll_frame = ctk.CTkScrollableFrame(self, fg_color="#111111", corner_radius=10, label_text="DATOS PERSONALES")
         scroll_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
         scroll_frame.columnconfigure((0, 1), weight=1)
         

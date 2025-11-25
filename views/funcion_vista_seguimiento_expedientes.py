@@ -77,7 +77,7 @@ class SeguimientoExpedienteViewFrame(ctk.CTkFrame):
         self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
 
         # Tabview para Registro y Historial
-        self.tabview = ctk.CTkTabview(self, fg_color="#3c3c3c", segmented_button_selected_color="#3498db")
+        self.tabview = ctk.CTkTabview(self, fg_color="#111111", segmented_button_selected_color="#3498db")
         self.tabview.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
         
         self.tabview.add("✍️ Registrar Seguimiento")

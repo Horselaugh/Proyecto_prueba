@@ -103,7 +103,7 @@ class ArticuloViewFrame(ctk.CTkFrame):
         self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
 
         # Contenedor principal de formulario y búsqueda
-        content_frame = ctk.CTkFrame(self, fg_color="#3c3c3c", corner_radius=10)
+        content_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=10)
         content_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
         content_frame.columnconfigure(0, weight=1)
 

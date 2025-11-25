@@ -178,13 +178,13 @@ class ReportesViewFrame(ctk.CTkFrame):
         self.btn_exportar.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         # 2. Área de Resultados (Gráfico o Tabla)
-        self.resultados_tabview = ctk.CTkTabview(main_frame, fg_color="#3c3c3c")
+        self.resultados_tabview = ctk.CTkTabview(main_frame, fg_color="#111111")
         self.resultados_tabview.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
         
         self.resultados_tabview.add("📊 Gráfico")
         self.resultados_tabview.add("📄 Tabla de Datos")
         
-        self.chart_frame = ctk.CTkFrame(self.resultados_tabview.tab("📊 Gráfico"), fg_color="#3c3c3c")
+        self.chart_frame = ctk.CTkFrame(self.resultados_tabview.tab("📊 Gráfico"), fg_color="#111111")
         self.chart_frame.pack(fill="both", expand=True)
 
         self.table_frame = ctk.CTkScrollableFrame(self.resultados_tabview.tab("📄 Tabla de Datos"), fg_color="#2e2e2e")
@@ -217,7 +217,7 @@ class ReportesViewFrame(ctk.CTkFrame):
         
         for i, (label_text, key, color) in enumerate(stats_data):
             # Contenedor para cada stat
-            stat_container = ctk.CTkFrame(stat_line_frame, fg_color="#3c3c3c", corner_radius=8)
+            stat_container = ctk.CTkFrame(stat_line_frame, fg_color="#111111", corner_radius=8)
             stat_container.pack(side="left", fill="x", expand=True, padx=10)
             stat_container.columnconfigure(1, weight=1)
 
@@ -344,7 +344,7 @@ class ReportesViewFrame(ctk.CTkFrame):
 
         # 2. Filas de Datos
         for i, row_data in enumerate(data):
-            row_frame = ctk.CTkFrame(self.table_frame, fg_color="#2c3e50" if i % 2 == 0 else "#3c3c3c")
+            row_frame = ctk.CTkFrame(self.table_frame, fg_color="#2c3e50" if i % 2 == 0 else "#111111")
             row_frame.pack(fill="x", padx=5, pady=0)
             row_frame.columnconfigure(tuple(range(len(columnas))), weight=1)
             
@@ -386,7 +386,7 @@ class ReportesViewFrame(ctk.CTkFrame):
                 ax.text(i, v + 0.5, str(v), color='white', ha='center', fontweight='bold')
                 
         # Estilo de fondo para customtkinter
-        fig.patch.set_facecolor('#3c3c3c')
+        fig.patch.set_facecolor('#111111')
         ax.set_facecolor('#2e2e2e')
         plt.tight_layout()
 

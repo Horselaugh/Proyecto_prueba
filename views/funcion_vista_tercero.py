@@ -62,7 +62,7 @@ class TerceroViewFrame(ctk.CTkFrame):
         main_container.rowconfigure(0, weight=1)
         
         # --- IZQUIERDA: Formulario de Registro ---
-        form_frame = ctk.CTkScrollableFrame(main_container, fg_color="#3c3c3c", corner_radius=10, label_text="REGISTRO DE TERCERO")
+        form_frame = ctk.CTkScrollableFrame(main_container, fg_color="#111111", corner_radius=10, label_text="REGISTRO DE TERCERO")
         form_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10), pady=0)
         form_frame.columnconfigure(0, weight=1)
         
@@ -98,7 +98,7 @@ class TerceroViewFrame(ctk.CTkFrame):
                       fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
                       
         # --- DERECHA: Listado de Terceros (Tabla) ---
-        list_frame = ctk.CTkFrame(main_container, fg_color="#3c3c3c", corner_radius=10, border_width=1)
+        list_frame = ctk.CTkFrame(main_container, fg_color="#111111", corner_radius=10, border_width=1)
         list_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0), pady=0)
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(1, weight=1)

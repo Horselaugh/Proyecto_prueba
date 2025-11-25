@@ -49,7 +49,7 @@ class RelacionNNAFamiliarViewFrame(ctk.CTkFrame):
         self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
 
         # Contenedor principal de la relación
-        form_frame = ctk.CTkFrame(self, fg_color="#3c3c3c", corner_radius=10, label_text="DATOS DEL VÍNCULO")
+        form_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=10, label_text="DATOS DEL VÍNCULO")
         form_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 10))
         form_frame.columnconfigure((0, 1), weight=1)
         
@@ -92,7 +92,7 @@ class RelacionNNAFamiliarViewFrame(ctk.CTkFrame):
         
         # --- LISTADO DE RELACIONES (Parte inferior) ---
         
-        list_frame = ctk.CTkFrame(self, fg_color="#3c3c3c", corner_radius=10, label_text="RELACIONES DEL NNA CARGADO")
+        list_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=10, label_text="RELACIONES DEL NNA CARGADO")
         list_frame.grid(row=3, column=0, sticky="nsew", padx=20, pady=(0, 20))
         list_frame.columnconfigure(0, weight=1)
         list_frame.rowconfigure(0, weight=1)
