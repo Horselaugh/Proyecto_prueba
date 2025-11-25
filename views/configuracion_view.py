@@ -4,12 +4,14 @@ from typing import List, Dict, Any, Optional
 import random
 
 # ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL) - COMPLETO
+# MOCK DE MODELO (TEMPORAL) - COMPLETO Y REVISADO
 # ----------------------------------------------------------------------
 
 # MOCK TEMPORAL: Asegura que el Controlador pueda inicializar su propiedad 'modelo'
 # e incluye todos los métodos CRUD necesarios para evitar AttributeErrors.
 class MockConfiguracionModelo:
+    """Mock completo del Modelo de configuración para simular la persistencia de datos."""
+    
     # Simulación de datos en memoria para el mock
     _ROLES = [
         {"id": 1, "nombre": "Admin", "descripcion": "Administrador con control total"},
@@ -45,11 +47,23 @@ class MockConfiguracionModelo:
         return False
         
     def handle_eliminar_rol(self, rol_id: int) -> bool: 
-        """
-        Mock para eliminar un rol. 
-        Este es el método que faltaba y causaba el AttributeError.
-        """
+        """Mock para eliminar un rol."""
+        # Se recrea la lista excluyendo el rol_id
         self._ROLES[:] = [r for r in self._ROLES if r['id'] != rol_id]
+        
+        # También actualizamos los usuarios cuyo rol fue eliminado, asignándoles el primer rol disponible o un default.
+        # En una aplicación real, habría validación para prevenir esto.
+        if not self._ROLES:
+            default_rol_id = None
+        else:
+            default_rol_id = self._ROLES[0]['id']
+            default_rol_nombre = self._ROLES[0]['nombre']
+            
+        for user in self._USUARIOS:
+            if user['rol_id'] == rol_id:
+                user['rol_id'] = default_rol_id
+                user['rol_nombre'] = default_rol_nombre if default_rol_id else "N/A (Rol Eliminado)"
+                
         return True
 
     # ------------------
@@ -69,7 +83,7 @@ class MockConfiguracionModelo:
             "apellido": data['apellido'], 
             "documento": data['documento'], 
             "rol_id": data['rol_id'],
-            "rol_nombre": rol_info['nombre']
+            "rol_nombre": rol_info.get('nombre', 'Desconocido')
         }
         self._USUARIOS.append(new_user)
         return True
@@ -84,7 +98,7 @@ class MockConfiguracionModelo:
                     "apellido": data['apellido'],
                     "documento": data['documento'],
                     "rol_id": data['rol_id'],
-                    "rol_nombre": rol_info['nombre']
+                    "rol_nombre": rol_info.get('nombre', 'Desconocido')
                 })
                 return True
         return False
@@ -94,12 +108,13 @@ class MockConfiguracionModelo:
         self._USUARIOS[:] = [u for u in self._USUARIOS if u['id'] != persona_id]
         return True
         
-    def _get_rol_info(self, rol_id: int) -> Dict[str, str]:
+    def _get_rol_info(self, rol_id: int) -> Dict[str, Any]:
         """Ayudante para obtener nombre de rol en el mock."""
         for rol in self._ROLES:
             if rol['id'] == rol_id:
                 return rol
-        return {"nombre": "Desconocido"}
+        # Retorna un diccionario con valores por defecto si el rol_id no se encuentra
+        return {"id": None, "nombre": "Desconocido", "descripcion": "Rol no encontrado"}
 
 
 # Importamos el controlador (o su mock)
@@ -242,6 +257,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.rol_list_frame: Optional[ctk.CTkScrollableFrame] = None
         self.usuario_list_frame: Optional[ctk.CTkScrollableFrame] = None
         self.usuario_rol_combo: Optional[ctk.CTkComboBox] = None
+        self.usuario_doc_entry: Optional[ctk.CTkEntry] = None
 
         self._configurar_interfaz()
 
@@ -306,15 +322,15 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         btn_frame.columnconfigure((0, 1), weight=1)
         
         self.btn_rol_crear_guardar = ctk.CTkButton(btn_frame, text="➕ Crear Rol", command=self._handle_rol_save, 
-                                                   fg_color="#2ecc71", hover_color="#27ae60", height=35)
+                                                     fg_color="#2ecc71", hover_color="#27ae60", height=35)
         self.btn_rol_crear_guardar.grid(row=0, column=0, padx=(0, 5), sticky="ew")
         
         self.btn_rol_cancelar = ctk.CTkButton(btn_frame, text="❌ Cancelar/Nuevo", command=lambda: self._limpiar_campos_rol(clear_selection=True), 
-                                              fg_color="#e74c3c", hover_color="#c0392b", height=35)
+                                                 fg_color="#e74c3c", hover_color="#c0392b", height=35)
         self.btn_rol_cancelar.grid(row=0, column=1, padx=(5, 0), sticky="ew")
 
         self.btn_rol_eliminar = ctk.CTkButton(self.rol_form_frame, text="🗑️ Eliminar Rol Seleccionado", command=self._handle_rol_eliminar, 
-                                              fg_color="#c0392b", hover_color="#a0291a", height=35, state="disabled")
+                                                 fg_color="#c0392b", hover_color="#a0291a", height=35, state="disabled")
         self.btn_rol_eliminar.pack(padx=20, pady=(10, 20), fill="x")
 
 
@@ -328,6 +344,9 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         # Preparar opciones para ComboBox de Usuarios
         rol_options = ["Seleccionar Rol"]
         self.rol_map: Dict[int, str] = {} # Mapeo de ID a Nombre/Desc para uso interno
+        
+        # Guardar la selección actual del ComboBox de usuarios
+        current_user_rol_selection = self.usuario_rol_var.get()
         
         for rol in roles:
             rol_str = f"{rol['id']} - {rol['nombre']}"
@@ -348,8 +367,10 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         # Actualizar ComboBox de Usuarios si existe
         if self.usuario_rol_combo:
             self.usuario_rol_combo.configure(values=rol_options)
-            # Asegurar que si no hay un rol seleccionado, se ponga el default
-            if self.usuario_rol_var.get() not in rol_options:
+            # Intentar mantener la selección si sigue existiendo. Si no, poner el default.
+            if current_user_rol_selection in rol_options:
+                self.usuario_rol_var.set(current_user_rol_selection)
+            elif rol_options: # Si hay al menos una opción (el default "Seleccionar Rol")
                 self.usuario_rol_var.set(rol_options[0])
 
 
@@ -394,7 +415,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
             nombre = self.rol_nombre_var.get()
             # En una aplicación real, usaríamos un modal para confirmar
             if messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar el rol '{nombre}' (ID: {self.rol_id_var})?"):
-                 self.controller.handle_eliminar_rol(self.rol_id_var, nombre)
+                self.controller.handle_eliminar_rol(self.rol_id_var, nombre)
         else:
             self.display_message("❌ Seleccione un rol para eliminar.", is_success=False)
 
@@ -447,15 +468,15 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         btn_frame_user.columnconfigure((0, 1), weight=1)
         
         self.btn_usuario_crear_guardar = ctk.CTkButton(btn_frame_user, text="➕ Crear Usuario", command=self._handle_usuario_save, 
-                                                       fg_color="#2ecc71", hover_color="#27ae60", height=35)
+                                                         fg_color="#2ecc71", hover_color="#27ae60", height=35)
         self.btn_usuario_crear_guardar.grid(row=0, column=0, padx=(0, 5), sticky="ew")
         
         self.btn_usuario_cancelar = ctk.CTkButton(btn_frame_user, text="❌ Cancelar/Nuevo", command=lambda: self._limpiar_campos_usuario(clear_selection=True), 
-                                                  fg_color="#e74c3c", hover_color="#c0392b", height=35)
+                                                     fg_color="#e74c3c", hover_color="#c0392b", height=35)
         self.btn_usuario_cancelar.grid(row=0, column=1, padx=(5, 0), sticky="ew")
 
         self.btn_usuario_eliminar = ctk.CTkButton(self.usuario_form_frame, text="🗑️ Eliminar Usuario Seleccionado", command=self._handle_usuario_eliminar, 
-                                                  fg_color="#c0392b", hover_color="#a0291a", height=35, state="disabled")
+                                                     fg_color="#c0392b", hover_color="#a0291a", height=35, state="disabled")
         self.btn_usuario_eliminar.pack(padx=20, pady=(10, 20), fill="x")
 
 
@@ -503,7 +524,8 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         if opcion_a_seleccionar in combo_values:
             self.usuario_rol_var.set(opcion_a_seleccionar)
         else:
-            self.usuario_rol_var.set("Seleccionar Rol")
+            # Se usa el primer valor de la lista (normalmente "Seleccionar Rol") si el rol actual ya no existe
+            self.usuario_rol_var.set(combo_values[0] if combo_values else "Seleccionar Rol")
 
         self.btn_usuario_crear_guardar.configure(text="💾 Guardar Cambios", fg_color="#3498db", hover_color="#2980b9")
         self.btn_usuario_eliminar.configure(state="normal")
@@ -514,10 +536,16 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         if clear_selection:
             self.usuario_id_var = None
         self.usuario_doc_var.set("")
-        self.usuario_doc_entry.configure(state="normal") # Habilitar Documento para nuevo registro
+        if self.usuario_doc_entry: # Comprobación de seguridad
+            self.usuario_doc_entry.configure(state="normal") # Habilitar Documento para nuevo registro
         self.usuario_nombre_var.set("")
         self.usuario_apellido_var.set("")
-        self.usuario_rol_var.set(self.usuario_rol_combo.cget("values")[0] if self.usuario_rol_combo and self.usuario_rol_combo.cget("values") else "Seleccionar Rol")
+        
+        # Resetear el ComboBox al valor por defecto
+        combo_values = self.usuario_rol_combo.cget("values") if self.usuario_rol_combo else []
+        default_value = combo_values[0] if combo_values else "Seleccionar Rol"
+        self.usuario_rol_var.set(default_value)
+        
         self.btn_usuario_crear_guardar.configure(text="➕ Crear Usuario", fg_color="#2ecc71", hover_color="#27ae60")
         self.btn_usuario_eliminar.configure(state="disabled")
         self.display_message("Formulario de Usuario listo para un nuevo registro.", True)
@@ -549,7 +577,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
             nombre = f"{self.usuario_nombre_var.get()} {self.usuario_apellido_var.get()}"
             # En una aplicación real, usaríamos un modal para confirmar
             if messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar al usuario '{nombre}' (ID: {self.usuario_id_var})?"):
-                 self.controller.handle_eliminar_usuario(self.usuario_id_var, nombre)
+                self.controller.handle_eliminar_usuario(self.usuario_id_var, nombre)
         else:
             self.display_message("❌ Seleccione un usuario para eliminar.", is_success=False)
 
@@ -562,3 +590,18 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         """Muestra un mensaje de estado en la interfaz."""
         color = "#2ecc71" if is_success else "#e74c3c"
         self.message_label.configure(text=message, text_color=color)
+
+
+# --- Ejemplo de Ejecución (Opcional, para testear) ---
+if __name__ == "__main__":
+    app = ctk.CTk()
+    app.title("Sistema de Gestión - Configuración (Mock)")
+    app.geometry("1000x700")
+
+    controller = ConfiguracionControlador()
+    view = ConfiguracionViewFrame(app, controller)
+    view.pack(fill="both", expand=True)
+    
+    view.show() # Cargar datos iniciales
+    
+    app.mainloop()

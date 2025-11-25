@@ -4,7 +4,7 @@ import sys
 import os
 # from controllers.login_controllers import LoginController  <--- ¡LÍNEA ELIMINADA PARA ROMPER LA IMPORTACIÓN CIRCULAR!
 
-ctk.set_appearance_mode("System")
+ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # ----------------------------------------------------------------------
@@ -22,7 +22,6 @@ class LoginView(ctk.CTk):
         self.geometry("400x350")
         self.resizable(False, False)
         self.center_window()
-        # ... (resto de la inicialización de la UI, sin cambios)
         
         self.frame = ctk.CTkFrame(master=self) 
         self.frame.pack(pady=20, padx=40, fill='both', expand=True)
@@ -74,8 +73,6 @@ class LoginView(ctk.CTk):
         self.controller.handle_login(usuario, password) 
         
     def registro(self):
-        # ... (La función registro queda igual, pero ahora la llamada a handle_registration
-        # también funciona porque self.controller es una instancia)
         register_window = ctk.CTkToplevel(self) 
         register_window.title("Registro")
         register_window.geometry("400x400")

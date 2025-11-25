@@ -96,7 +96,7 @@ MODULE_PATHS = {
 
     # Denuncias (NUEVO MÓDULO)
     "gestion_denuncias": {
-        "view_module": "funcion_vista_denuncia", # Nombre del archivo de vista proporcionado
+        "view_module": "funcion_vista_denuncia", 
         "view_class": "DenunciaViewFrame", 
         "controller_module": "controllers.denuncia_controller", 
         "controller_class": "DenunciaControlador" 
@@ -196,8 +196,9 @@ class MenuApp(ctk.CTk):
                                           corner_radius=0, 
                                           fg_color="#111111")
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(10, weight=1) # Espacio para empujar los botones inferiores
         
+        # Se quita la configuración de row 10 aquí, se hará dinámicamente en create_sidebar_buttons
+
         ctk.CTkLabel(self.sidebar_frame, 
                      text="🏛️ SISTEMA LOPNNA", 
                      font=("Arial", 18, "bold"), 
@@ -224,10 +225,13 @@ class MenuApp(ctk.CTk):
             {"text": "Gestión de Artículos", "command": "gestion_articulos", "emoji": "📦"},
             {"text": "Gestión de Personal", "command": "gestion_personal", "emoji": "👥"},
             {"text": "Seguimiento Expedientes", "command": "seguimiento_expedientes", "emoji": "📌"},
-            {"text": "Gestión de Denuncias", "command": "gestion_denuncias", "emoji": "🚨"}, # NUEVO
+            {"text": "Gestión de Denuncias", "command": "gestion_denuncias", "emoji": "🚨"}, 
             {"text": "Reportes y Estadísticas", "command": "reportes", "emoji": "📊"},
             {"text": "Configuración del Sistema", "command": "configuracion", "emoji": "⚙️"},
         ]
+        
+        # Fila donde comienzan los botones de módulos (después de Título (0) y Separador (1))
+        start_row = 2 
         
         for i, module in enumerate(modules):
             button = ctk.CTkButton(
@@ -242,9 +246,20 @@ class MenuApp(ctk.CTk):
                 anchor="w"
             )
             # Los botones se colocan a partir de la fila 2
-            button.grid(row=i + 2, column=0, padx=15, pady=5, sticky="ew")
+            button.grid(row=i + start_row, column=0, padx=15, pady=5, sticky="ew")
 
-        # Botones de Ayuda y Salir, empujados hacia abajo por el weight=1 en la fila 10
+        # --- Ajuste para empujar los botones inferiores ---
+        
+        # Calcular la fila que va después del último botón de módulo
+        spacer_row = len(modules) + start_row 
+        
+        # Configurar esta fila para que se expanda y empuje el resto hacia abajo
+        self.sidebar_frame.grid_rowconfigure(spacer_row, weight=1)
+        
+        # Colocar los botones inferiores en las filas siguientes
+        next_row = spacer_row + 1 
+        
+        # Botón de Ayuda
         ctk.CTkButton(
             self.sidebar_frame,
             text="❓ Ayuda",
@@ -253,8 +268,9 @@ class MenuApp(ctk.CTk):
             fg_color="#f39c12",
             hover_color="#e67e22",
             font=("Arial", 12)
-        ).grid(row=11, column=0, padx=20, pady=(20, 5), sticky="s")
+        ).grid(row=next_row, column=0, padx=20, pady=(20, 5), sticky="s")
         
+        # Botón de Salir
         ctk.CTkButton(
             self.sidebar_frame,
             text="🚪 Salir",
@@ -263,7 +279,7 @@ class MenuApp(ctk.CTk):
             fg_color="#e74c3c",
             hover_color="#c0392b",
             font=("Arial", 12, "bold")
-        ).grid(row=12, column=0, padx=20, pady=(5, 20), sticky="s")
+        ).grid(row=next_row + 1, column=0, padx=20, pady=(5, 20), sticky="s")
 
 
     def _get_module_info(self, module_name):
@@ -332,7 +348,13 @@ class MenuApp(ctk.CTk):
 
             except ImportError as e:
                 # Si falla, es porque la ruta del controlador/vista no se resolvió
-                msg_error = f"No se pudo importar el módulo: {module_name}. Verifique que el archivo del Controlador ({controller_module_path}.py) y/o la Vista ({view_module_path}.py) existan y estén en la ruta del proyecto.\nError detallado: {e}"
+                controller_path_display = controller_module_path if controller_module_path else "N/A"
+                view_path_display = view_module_path if view_module_path else "N/A"
+                
+                msg_error = (f"No se pudo importar el módulo: {module_name}.\n"
+                             f"Verifique que el archivo del Controlador ({controller_path_display}.py) y/o la Vista ({view_path_display}.py) "
+                             f"existan y estén en la ruta del proyecto.\nError detallado: {e}")
+                
                 messagebox.showerror("❌ Error de Importación", msg_error)
                 print(f"Error de Importación del módulo {module_name}: {e}")
                 return 
@@ -355,9 +377,9 @@ class MenuApp(ctk.CTk):
         self.update_idletasks()
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-        # Usa un tamaño inicial de 1400x900 si cabe, sino ajusta al centro
-        app_width = 1200
-        app_height = 1000
+        # Usa un tamaño inicial de 1200x800 si cabe, sino ajusta al centro
+        app_width = 1200 
+        app_height = 800
         
         if app_width > screen_width:
             app_width = screen_width

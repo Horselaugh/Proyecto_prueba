@@ -25,12 +25,7 @@ def start_login_process():
     """Inicializa y ejecuta el proceso de Login, conectando la Vista con el Controlador."""
     
     # 1. Crear una INSTANCIA de la Vista (sin pasarle el controlador aún)
-    login_view = LoginView() 
-    
-    # 2. Crear una INSTANCIA del Controlador
-    # El controlador necesita:
-    # a) La instancia real de la vista (login_view) para manipularla.
-    # b) El callback (start_menu_app) para usarlo al iniciar sesión con éxito.
+    login_view = LoginView()
     controller_instance = LoginController(
         login_view=login_view, 
         success_callback=start_menu_app
