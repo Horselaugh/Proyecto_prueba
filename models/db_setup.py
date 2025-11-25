@@ -106,6 +106,16 @@ CREATE TABLE IF NOT EXISTS personal(
 );
 
 ---------------------------------
+-- TABLA DE AUTENTICACIÓN (FALTANTE)
+---------------------------------
+CREATE TABLE IF NOT EXISTS usuario(
+    persona_id INTEGER PRIMARY KEY,
+    nombre_usuario TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
+);
+
+---------------------------------
 -- TABLAS DE RELACIONES
 ---------------------------------
 CREATE TABLE IF NOT EXISTS relacion_nna(

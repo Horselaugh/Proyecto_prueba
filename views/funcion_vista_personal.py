@@ -4,34 +4,43 @@ from typing import Dict, List, Optional
 import datetime
 
 # ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL)
+# MOCK DE MODELO (TEMPORAL) - ACTUALIZADO
 # ----------------------------------------------------------------------
 class MockPersonalModel:
     def obtener_por_id(self, id):
         if id == 1:
+            # La Vista espera estos campos ya procesados por el Controlador
             return {
-                "id": 1, "cedula": "V12345678", "primer_nombre": "Juan", 
-                "segundo_nombre": "Carlos", "primer_apellido": "Pérez", 
-                "segundo_apellido": "Rojas", "telefono": "04141234567",
-                "direccion": "Calle Falsa 123", "genero": "Masculino", 
-                "cargo_id": 1, "nombre_usuario": "jperez", "resolucion": "N/A"
+                "id": 1, 
+                "documento_identidad": "V12345678", # Clave correcta para la cédula
+                "primer_nombre": "Juan", 
+                "segundo_nombre": "Carlos", # Añadido
+                "primer_apellido": "Pérez", 
+                "segundo_apellido": "Rojas", # Añadido
+                "telefono": "04141234567",
+                "direccion": "Calle Falsa 123", # Añadido
+                "genero": "Masculino", # Nombre completo (mapeado por Controller)
+                "cargo_id": 1, 
+                "nombre_usuario": "jperez", # Añadido
+                "resolucion": "N/A"
             }
         return None
+        
+    def obtener_por_cedula(self, cedula): # Añadido para consistencia
+        if cedula == "V12345678":
+            return self.obtener_por_id(1)
+        return None
 
-    def agregar_personal(self, datos):
-        return 2 # Simula que devuelve el nuevo ID
-
-    def actualizar_personal(self, id, **kwargs):
-        return True # Simula éxito
-
-    def eliminar_personal(self, id):
-        return True # Simula éxito
+    def agregar_personal(self, datos): return 2 
+    # El método actualizar_personal de la vista MOCK recibe 'data'
+    def actualizar_personal(self, data): return True 
+    def eliminar_personal(self, id): return True 
     
     def listar_generos(self): return ["Femenino", "Masculino", "Otro"]
     def listar_cargos(self): return [{"id": 1, "nombre": "Coordinador"}, {"id": 2, "nombre": "Secretario"}]
 
 # ----------------------------------------------------------------------
-# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
+# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola) - AJUSTADO
 # ----------------------------------------------------------------------
 class PersonalControlador:
     def __init__(self):
@@ -51,11 +60,14 @@ class PersonalControlador:
         self.vista.display_message("Listo para gestionar Personal. Ingrese ID/Cédula para buscar. 🔎", is_success=True)
 
     def handle_crear_personal(self, *args): self.vista.display_message("Mock: Crear Personal", True)
+    
     def handle_cargar_personal(self, id_or_cedula): 
         resultado = self.modelo.obtener_por_id(1) # Siempre carga el mock ID 1
         if resultado:
-            # Asignar nombre de cargo al resultado para que la vista lo use
-            resultado['cargo_nombre'] = next((c['nombre'] for c, i in self.cargo_map.items() if i == resultado['cargo_id']), "Desconocido")
+            # Simular mapeo de cargo (el controlador real lo haría)
+            cargo_nombre = next((c['nombre'] for c, i in self.cargo_map.items() if i == resultado['cargo_id']), "Desconocido")
+            resultado['cargo_nombre'] = cargo_nombre
+            
             self.vista._establecer_datos_formulario(resultado)
             self.vista.display_message("Mock: Personal cargado (ID 1)", True)
         else:
@@ -259,38 +271,41 @@ class PersonalViewFrame(ctk.CTkFrame):
         self.display_message("")
 
     def _obtener_datos_formulario(self): 
-        """Recolecta los datos de los campos de entrada."""
+        """Recolecta los datos de los campos de entrada. Usa None para campos opcionales vacíos."""
+        
+        def _get_or_none(var):
+            value = var.get().strip()
+            return value if value else None
+
         return {
-            "cedula": self.cedula_var.get().strip(),
-            "primer_nombre": self.p_nombre_var.get().strip(),
-            "segundo_nombre": self.s_nombre_var.get().strip() or None,
-            "primer_apellido": self.p_apellido_var.get().strip(),
-            "segundo_apellido": self.s_apellido_var.get().strip() or None,
-            "telefono": self.telefono_var.get().strip(),
-            "direccion": self.direccion_var.get().strip(),
+            "cedula": _get_or_none(self.cedula_var),
+            "primer_nombre": _get_or_none(self.p_nombre_var),
+            "segundo_nombre": _get_or_none(self.s_nombre_var),
+            "primer_apellido": _get_or_none(self.p_apellido_var),
+            "segundo_apellido": _get_or_none(self.s_apellido_var),
+            "telefono": _get_or_none(self.telefono_var),
+            "direccion": _get_or_none(self.direccion_var),
             "genero": self.genero_var.get(),
-            "cargo": self.cargo_var.get(), # Se envía el nombre del cargo, el controlador lo mapea a ID
-            "nombre_usuario": self.usuario_var.get().strip(),
+            "cargo": self.cargo_var.get(), 
+            "nombre_usuario": _get_or_none(self.usuario_var),
             "password": self.password_var.get().strip() 
         }
         
     def _establecer_datos_formulario(self, data: dict): 
         """Establece los valores en los campos de entrada y habilita botones."""
-        self.cedula_var.set(data.get("cedula", ""))
-        self.p_nombre_var.set(data.get("primer_nombre", ""))
+        self.cedula_var.set(data.get("documento_identidad", "") or "")
+        self.p_nombre_var.set(data.get("primer_nombre", "") or "")
         self.s_nombre_var.set(data.get("segundo_nombre", "") or "")
-        self.p_apellido_var.set(data.get("primer_apellido", ""))
+        self.p_apellido_var.set(data.get("primer_apellido", "") or "")
         self.s_apellido_var.set(data.get("segundo_apellido", "") or "")
-        self.telefono_var.set(data.get("telefono", ""))
-        self.direccion_var.set(data.get("direccion", ""))
+        self.telefono_var.set(data.get("telefono", "") or "")
+        self.direccion_var.set(data.get("direccion", "") or "")
         
         # Cargar Género y Cargo
-        # Asumimos que data.get('genero') es el valor a mostrar (e.g., "Masculino")
         self.genero_var.set(data.get("genero", self.genero_var.cget("value")))
-        # Asumimos que data.get('cargo_nombre') se obtiene del controlador al cargar
         self.cargo_var.set(data.get("cargo_nombre", self.cargo_var.cget("value")))
 
-        self.usuario_var.set(data.get("nombre_usuario", ""))
+        self.usuario_var.set(data.get("nombre_usuario", "") or "")
         self.password_var.set("********") # Nunca cargar la contraseña real
         
         self.personal_id_cargado = data.get("id")
