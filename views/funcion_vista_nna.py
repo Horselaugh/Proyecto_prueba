@@ -2,63 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from typing import Dict, List, Optional
 import datetime
-
-# ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL)
-# ----------------------------------------------------------------------
-class MockNNAModel:
-    def obtener_por_id(self, id):
-        if id == 1:
-            return {
-                "id": 1, "primer_nombre": "Carlos", "segundo_nombre": "Manuel", 
-                "primer_apellido": "López", "segundo_apellido": "Díaz",
-                "fecha_nacimiento": "2015-05-20", "genero": "Masculino",
-                "direccion": "Av. Principal, Casa 5", "telefono": "555-4321", 
-                "documento_identidad": "V12345678" # Cédula si aplica
-            }
-        return None
-
-    def crear_nna(self, datos):
-        return {"status": "success", "message": "NNA creado.", "id": 2}
-
-    def actualizar_nna(self, id, **kwargs):
-        return {"status": "success", "message": f"NNA ID {id} actualizado."}
-
-    def eliminar_nna(self, id):
-        return {"status": "success", "message": f"NNA ID {id} eliminado."}
-    
-    def listar_todos(self): return []
-    def listar_generos(self): return ["Femenino", "Masculino", "Otro"]
-
-# ----------------------------------------------------------------------
-# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
-# ----------------------------------------------------------------------
-class NNAControlador:
-    def __init__(self):
-        self.modelo = MockNNAModel() 
-        self.vista = None
-
-    def set_view(self, view_instance):
-        self.vista = view_instance
-        
-    def load_initial_data(self):
-        generos = self.modelo.listar_generos()
-        self.vista._cargar_generos(generos)
-        self.vista.display_message("Listo para gestionar NNA. Use el campo de búsqueda para cargar.", is_success=True)
-
-    def handle_crear_nna(self, *args): self.vista.display_message("Mock: Crear NNA", True)
-    def handle_cargar_nna_por_id(self, id): 
-        resultado = self.modelo.obtener_por_id(id)
-        if resultado:
-            self.vista._establecer_datos_formulario(resultado)
-            self.vista.display_message("Mock: NNA cargado (ID 1)", True)
-        else:
-            self.vista.display_message("Mock: NNA no encontrado", False)
-            self.vista.limpiar_entradas(clean_search=False)
-            
-    def handle_actualizar_nna(self, *args): self.vista.display_message("Mock: Actualizar NNA", True)
-    def handle_eliminar_nna(self, *args): self.vista.display_message("Mock: Eliminar NNA", True)
-
+from controllers.nna_controller import NNAControlador
 
 # ----------------------------------------------------------------------
 # CLASE DE VISTA ADAPTADA
@@ -144,7 +88,7 @@ class NNAViewFrame(ctk.CTkFrame):
         
         # Fila 4: Género y Teléfono
         self._add_field(scroll_frame, 8, 0, "Género:", self.genero_var, is_combo=True)
-        self._add_field(scroll_frame, 8, 1, "Teléfono:", self.telefono_var)
+        self._add_field(scroll_frame, 8, 1, "Teléfono (11 dígitos):", self.telefono_var)
 
         # Fila 5: Dirección
         self._add_field(scroll_frame, 10, 0, "Dirección:", self.direccion_var, columnspan=2)
@@ -178,9 +122,6 @@ class NNAViewFrame(ctk.CTkFrame):
         else:
             ctk.CTkEntry(parent, textvariable=var, height=40).grid(row=row + 1, column=column, columnspan=columnspan, sticky="ew", padx=10, pady=(0, 5))
 
-    # ----------------------------------------------------------------------
-    # Métodos de Eventos (Delegación al Controlador)
-    # ----------------------------------------------------------------------
     
     def _handle_crear_nna(self):
         data = self._obtener_datos_formulario()
@@ -226,8 +167,9 @@ class NNAViewFrame(ctk.CTkFrame):
         self.p_apellido_var.set("")
         self.s_apellido_var.set("")
         self.f_nacimiento_var.set(datetime.date.today().isoformat())
+        
         # Mantener el primer género seleccionado o limpiar
-        if self.genero_combo.cget("values"):
+        if hasattr(self, 'genero_combo') and self.genero_combo.cget("values"):
              self.genero_var.set(self.genero_combo.cget("values")[0])
         else:
              self.genero_var.set("")
@@ -240,12 +182,15 @@ class NNAViewFrame(ctk.CTkFrame):
 
     def _obtener_datos_formulario(self): 
         """Recolecta los datos de los campos de entrada."""
+        doc_id = self.doc_id_var.get().strip()
+        
         return {
             "primer_nombre": self.p_nombre_var.get().strip(),
             "segundo_nombre": self.s_nombre_var.get().strip() or None,
             "primer_apellido": self.p_apellido_var.get().strip(),
             "segundo_apellido": self.s_apellido_var.get().strip() or None,
-            "documento_identidad": self.doc_id_var.get().strip() or None,
+            # CORRECCIÓN: Se pasa None si el campo está vacío
+            "documento_identidad": doc_id if doc_id else None, 
             "fecha_nacimiento": self.f_nacimiento_var.get().strip(),
             "genero": self.genero_var.get(),
             "direccion": self.direccion_var.get().strip(),
@@ -272,7 +217,9 @@ class NNAViewFrame(ctk.CTkFrame):
         """Carga las opciones en el ComboBox de Género."""
         if generos:
             self.genero_combo.configure(values=generos)
-            self.genero_var.set(generos[0]) # Seleccionar el primero por defecto
+            # Asegurar que se selecciona el primero por defecto si la variable está vacía
+            if not self.genero_var.get():
+                self.genero_var.set(generos[0])
         
     def _set_btn_state(self, state):
         """Habilita o deshabilita los botones de Modificar/Eliminar."""

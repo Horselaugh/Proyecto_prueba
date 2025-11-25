@@ -2,6 +2,7 @@
 import sys
 import os
 import sqlite3
+import datetime
 from sqlite3 import Error, IntegrityError
 from typing import List, Dict, Optional
 
@@ -11,45 +12,72 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from database_connector import Database
 except ImportError:
+    # Asume que database_connector.py está en el mismo nivel
     from models.database_connector import Database
 
 class NNAModel:
     """Modelo para gestionar las operaciones de NNA (Niños, Niñas y Adolescentes) en la base de datos"""
+    
+    # Géneros fijos para la lógica de negocio/validación
+    GENEROS_DISPONIBLES = ["M", "F", "OTRO"] 
 
     def __init__(self):
         self.db = Database()
+
+    def _validar_datos_formato(self, datos: dict) -> Optional[dict]:
+        """Función interna para validar el formato de fecha, género y teléfono."""
+        
+        fecha = datos.get("fecha_nacimiento")
+        genero = datos.get("genero")
+        telefono = datos.get("telefono")
+
+        if fecha:
+            try:
+                # Comprueba el formato YYYY-MM-DD
+                datetime.date.fromisoformat(fecha)
+            except (ValueError, TypeError):
+                return {"error": "Fecha debe tener formato YYYY-MM-DD", "status": "error"}
+        
+        if genero:
+            if genero.upper() not in self.GENEROS_DISPONIBLES:
+                return {"error": f"Género debe ser uno de: {', '.join(self.GENEROS_DISPONIBLES)}", "status": "error"}
+        
+        if telefono:
+            if len(telefono) != 11 or not telefono.isdigit():
+                return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
+            
+        return None # No hay errores de formato
+        
+    def listar_generos(self) -> List[str]:
+        """Retorna la lista de géneros disponibles (para la vista/combobox)."""
+        return self.GENEROS_DISPONIBLES
 
     def _mapear_nna(self, fila: dict) -> dict:
         """Función interna para mapear una fila de la BD a un diccionario."""
         if not fila:
             return None
         return {
-            "persona_id": fila["id"],
-            "documento_identidad": fila["documento_identidad"],
-            "primer_nombre": fila["primer_nombre"],
-            "segundo_nombre": fila["segundo_nombre"],
-            "primer_apellido": fila["primer_apellido"],
-            "segundo_apellido": fila["segundo_apellido"],
-            "genero": fila["genero"],
-            "direccion": fila["direccion"],
-            "telefono": fila["telefono"],
-            "fecha_nacimiento": fila["fecha_nacimiento"],
-            "activo": bool(fila["activo"]) if "activo" in fila else True
+            "id": fila.get("id"),
+            "documento_identidad": fila.get("documento_identidad"),
+            "primer_nombre": fila.get("primer_nombre"),
+            "segundo_nombre": fila.get("segundo_nombre"),
+            "primer_apellido": fila.get("primer_apellido"),
+            "segundo_apellido": fila.get("segundo_apellido"),
+            "genero": fila.get("genero"),
+            "direccion": fila.get("direccion"),
+            "telefono": fila.get("telefono"),
+            "fecha_nacimiento": fila.get("fecha_nacimiento"),
+            "activo": bool(fila.get("activo"))
         }
 
     def crear_nna(self, datos: dict) -> dict:
         """Crea un nuevo registro de NNA en la base de datos"""
         
-        # Validaciones
-        if len(datos["fecha_nacimiento"]) != 10:
-            return {"error": "Fecha debe tener formato YYYY-MM-DD", "status": "error"}
+        # Validación de formato delegada al modelo
+        error_formato = self._validar_datos_formato(datos)
+        if error_formato:
+            return error_formato
         
-        if datos["genero"].upper() not in ['M', 'F']:
-            return {"error": "Género debe ser M o F", "status": "error"}
-        
-        if len(datos["telefono"]) != 11 or not datos["telefono"].isdigit():
-            return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
-
         sql_persona = """
         INSERT INTO persona (
             documento_identidad, primer_nombre, segundo_nombre, 
@@ -93,8 +121,10 @@ class NNAModel:
             }
 
         except IntegrityError as e:
+            conexion.rollback()
             return {"error": f"Error de integridad: {str(e)}", "status": "error"}
         except Error as e:
+            conexion.rollback()
             return {"error": f"Error de BD al crear NNA: {str(e)}", "status": "error"}
         finally:
             if conexion:
@@ -120,7 +150,7 @@ class NNAModel:
             cursor = conexion.cursor()
             cursor.execute(sql, (persona_id,))
             fila = cursor.fetchone()
-            return dict(fila) if fila else None
+            return self._mapear_nna(dict(fila)) if fila else None
         except Error as e:
             print(f"Error al obtener NNA por ID: {e}")
             return None
@@ -148,7 +178,7 @@ class NNAModel:
             cursor = conexion.cursor()
             cursor.execute(sql, (primer_nombre, primer_apellido))
             filas = cursor.fetchall()
-            return [dict(fila) for fila in filas]
+            return [self._mapear_nna(dict(fila)) for fila in filas]
         except Error as e:
             print(f"Error al obtener NNA por nombre: {e}")
             return []
@@ -176,7 +206,7 @@ class NNAModel:
             cursor = conexion.cursor()
             cursor.execute(sql)
             filas = cursor.fetchall()
-            return [dict(fila) for fila in filas]
+            return [self._mapear_nna(dict(fila)) for fila in filas]
         except Error as e:
             print(f"Error al listar NNA: {e}")
             return []
@@ -187,6 +217,11 @@ class NNAModel:
     def actualizar_nna(self, persona_id: int, datos: dict) -> dict:
         """Actualiza los datos de un NNA"""
         
+        # Validación de formato delegada al modelo
+        error_formato = self._validar_datos_formato(datos)
+        if error_formato:
+            return error_formato
+            
         updates_persona = {}
         updates_nna = {}
         
@@ -197,22 +232,14 @@ class NNAModel:
         ]
         
         for campo in campos_persona:
-            if campo in datos and datos[campo] is not None:
-                updates_persona[campo] = datos[campo]
+            valor = datos.get(campo)
+            if valor is not None:
+                # El campo puede estar presente, pero vacío. Solo lo incluimos si el valor no es None
+                updates_persona[campo] = valor
         
         # Preparar actualizaciones para nna
         if "fecha_nacimiento" in datos and datos["fecha_nacimiento"] is not None:
-            if len(datos["fecha_nacimiento"]) != 10:
-                return {"error": "Fecha debe tener formato YYYY-MM-DD", "status": "error"}
             updates_nna["fecha_nacimiento"] = datos["fecha_nacimiento"]
-        
-        # Validaciones
-        if "genero" in updates_persona and updates_persona["genero"].upper() not in ['M', 'F']:
-            return {"error": "Género debe ser M o F", "status": "error"}
-        
-        if "telefono" in updates_persona:
-            if len(updates_persona["telefono"]) != 11 or not updates_persona["telefono"].isdigit():
-                return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
         
         if not updates_persona and not updates_nna:
             return {"error": "No hay datos para actualizar", "status": "error"}
@@ -227,7 +254,13 @@ class NNAModel:
             # Actualizar persona si hay cambios
             if updates_persona:
                 set_clause = ", ".join([f"{k} = ?" for k in updates_persona.keys()])
-                valores = list(updates_persona.values())
+                valores = []
+                for k, v in updates_persona.items():
+                    if k == "genero":
+                        valores.append(v.upper()) # Asegura que el género se guarda en mayúsculas
+                    else:
+                        valores.append(v)
+                
                 valores.append(persona_id)
                 
                 cursor.execute(f"UPDATE persona SET {set_clause} WHERE id = ?", valores)
@@ -243,8 +276,10 @@ class NNAModel:
             return {"status": "success", "message": "NNA actualizado correctamente"}
                 
         except IntegrityError as e:
+            conexion.rollback()
             return {"error": f"Error de integridad al actualizar: {str(e)}", "status": "error"}
         except Error as e:
+            conexion.rollback()
             return {"error": f"Error de BD al actualizar NNA: {str(e)}", "status": "error"}
         finally:
             if conexion:
@@ -270,6 +305,7 @@ class NNAModel:
                 return {"error": "No se encontró el NNA con el ID especificado", "status": "error"}
                     
         except Error as e:
+            conexion.rollback()
             return {"error": f"Error de BD al eliminar NNA: {str(e)}", "status": "error"}
         finally:
             if conexion:

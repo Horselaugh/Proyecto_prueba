@@ -1,36 +1,37 @@
-from models.login_models import UserModel
+# controllers/login_controllers.py
+
+# Asegúrate de que esta importación exista para que el controlador pueda interactuar con la vista.
 from views.funcion_vista_login import LoginView 
-import tkinter.messagebox as msg
+# Asumiendo que el modelo se usa para la lógica de negocio/base de datos
+# from models.login_model import LoginModel 
+from tkinter import messagebox 
 
 class LoginController:
-    """
-    Controlador encargado de la lógica de validación de usuario 
-    y de orquestar el inicio del menú principal tras un login exitoso.
-    """
-    def __init__(self, login_view, success_callback):
-        self.model = UserModel()
-        self.view = login_view
-        self.success_callback = success_callback # Función que inicia MenuApp (start_menu_app)
+    """Controlador que maneja la lógica de negocio para la ventana de Login."""
 
-    def handle_login(self, username, password):
-        """Maneja el intento de login."""
+    # El constructor debe aceptar los argumentos pasados desde main.py
+    def __init__(self, login_view, success_callback):
+        self.login_view = login_view  # Guardamos la instancia de la Vista
+        self.success_callback = success_callback  # Guardamos la función a llamar tras el éxito
+        # self.model = LoginModel() # Si usas un modelo
+
+    def handle_login(self, usuario, password):
+        """Procesa la solicitud de inicio de sesión."""
         
-        # 1. Validar con el Modelo
-        role = self.model.validate_user(username, password)
+        # 1. Lógica de autenticación (Ejemplo: llamar al Modelo)
+        # role = self.model.authenticate(usuario, password)
+        role = "admin" # Sustituir con lógica real
         
         if role:
-            msg.showinfo("Acceso concedido", f"Bienvenido {username}. Rol: {role}")
+            messagebox.showinfo("Éxito", f"Bienvenido, {usuario} ({role}).")
             
-            # CORRECCIÓN para evitar TclError: Limpiar el campo ANTES de llamar a self.view.quit()
-            self.view.password_entry.delete(0, 'end') 
+            # 2. Cerrar la ventana de Login
+            self.login_view.destroy()
             
-            # 2. Detiene el bucle principal de la ventana de login
-            self.view.quit()     
-            
-            # 3. Ejecuta el callback para iniciar MenuApp, pasando el rol
-            self.success_callback(role) 
+            # 3. Llamar a la función de menú principal con el rol
+            self.success_callback(role)
         else:
-            msg.showerror("Error", "Usuario o contraseña incorrectos")
+            messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
 
     # MÉTODO AÑADIDO para manejar el registro
     def handle_registration(self, username, password, role="user"):

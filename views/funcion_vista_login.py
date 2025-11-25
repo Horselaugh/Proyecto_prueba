@@ -2,6 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 import sys
 import os
+# from controllers.login_controllers import LoginController  <--- ¡LÍNEA ELIMINADA PARA ROMPER LA IMPORTACIÓN CIRCULAR!
 
 ctk.set_appearance_mode("System")
 ctk.set_default_color_theme("blue")
@@ -13,14 +14,16 @@ ctk.set_default_color_theme("blue")
 class LoginView(ctk.CTk):
     """La interfaz gráfica de la ventana de Login, que interactúa con LoginController."""
 
-    def __init__(self, controller):
+    # Se elimina el valor por defecto 'controller=LoginController' para forzar la asignación externa.
+    def __init__(self, controller=None): 
         super().__init__()
-        self.controller = controller 
+        self.controller = controller # Se espera que main.py asigne la instancia del controlador
         self.title("Inicio de Sesión")
         self.geometry("400x350")
         self.resizable(False, False)
         self.center_window()
-
+        # ... (resto de la inicialización de la UI, sin cambios)
+        
         self.frame = ctk.CTkFrame(master=self) 
         self.frame.pack(pady=20, padx=40, fill='both', expand=True)
 
@@ -67,14 +70,12 @@ class LoginView(ctk.CTk):
             messagebox.showerror("Error", "Por favor, complete todos los campos")
             return
 
-        # Pasa la responsabilidad al controlador (incluyendo la limpieza y el cierre)
+        # self.controller ahora es una INSTANCIA, por lo que handle_login está disponible
         self.controller.handle_login(usuario, password) 
         
-        # NOTA: La limpieza de la contraseña se movió al controlador para evitar el TclError.
-        
-
     def registro(self):
-        # Implementación completa de la ventana de registro
+        # ... (La función registro queda igual, pero ahora la llamada a handle_registration
+        # también funciona porque self.controller es una instancia)
         register_window = ctk.CTkToplevel(self) 
         register_window.title("Registro")
         register_window.geometry("400x400")
@@ -112,7 +113,7 @@ class LoginView(ctk.CTk):
                 messagebox.showerror("Error de Registro", "Las contraseñas no coinciden.", parent=register_window)
                 return
             
-            # Llama al controlador para registrar el usuario
+            # Llama al controlador para registrar el usuario (self.controller ahora es una instancia)
             if self.controller.handle_registration(usuario, password):
                 messagebox.showinfo("Éxito", f"Usuario '{usuario}' registrado correctamente.", parent=register_window)
                 register_window.destroy()
@@ -122,9 +123,3 @@ class LoginView(ctk.CTk):
 
         register_button = ctk.CTkButton(master=frame, text='Registrar', command=registrar)
         register_button.pack(pady=20, padx=10)
-
-# ----------------------------------------------------------------------
-# PUNTO DE ENTRADA DE PRUEBA INDEPENDIENTE (IGNORAR ESTE BLOQUE AL USAR main.py)
-# ----------------------------------------------------------------------
-# if __name__ == "__main__":
-#     ...

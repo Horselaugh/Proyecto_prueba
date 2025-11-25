@@ -2,30 +2,7 @@ import sys
 import os
 from typing import Dict, List, Optional
 import datetime
-
-# Configuraciones de Path e importación del Modelo real o Mock
-try:
-    from models.nna_model import NNAModel
-except ImportError:
-    # Mock si el modelo real no se encuentra
-    class MockNNAModel:
-        def obtener_por_id(self, id):
-            if id == 1:
-                return {
-                    "id": 1, "primer_nombre": "Carlos", "segundo_nombre": "Manuel", 
-                    "primer_apellido": "López", "segundo_apellido": "Díaz",
-                    "fecha_nacimiento": "2015-05-20", "genero": "Masculino",
-                    "direccion": "Av. Principal, Casa 5", "telefono": "555-4321", 
-                    "documento_identidad": "V12345678" 
-                }
-            return None
-        def crear_nna(self, datos): return {"status": "success", "message": "NNA creado.", "id": 2}
-        def actualizar_nna(self, id, **kwargs): return {"status": "success", "message": f"NNA ID {id} actualizado."}
-        def eliminar_nna(self, id): return {"status": "success", "message": f"NNA ID {id} eliminado."}
-        def listar_generos(self): return ["Femenino", "Masculino", "Otro"]
-        
-    NNAModel = MockNNAModel
-    
+from models.nna_model import NNAModel
     
 class NNAControlador:
     """Controlador para gestionar las operaciones de NNA"""
@@ -43,6 +20,7 @@ class NNAControlador:
         if not self.vista: return
         
         try:
+            # CORRECCIÓN: Llamar al nuevo método listar_generos()
             generos = self.model.listar_generos()
             self.vista._cargar_generos(generos)
             self.vista.display_message("Listo para gestionar NNA. Ingrese el ID para buscar. 🔎", is_success=True)
@@ -53,15 +31,12 @@ class NNAControlador:
     # --- MÉTODOS DE MANEJO DE EVENTOS (Handle Methods) ---
 
     def _validar_datos(self, data: Dict) -> bool:
-        """Valida la presencia de datos críticos y el formato de fecha."""
+        """
+        CORRECCIÓN: Valida SOLO la presencia de datos críticos (Obligatorios). 
+        El formato de fecha, género y teléfono se delega al Modelo.
+        """
         if not all([data.get('primer_nombre'), data.get('primer_apellido'), data.get('fecha_nacimiento')]):
             self.vista.display_message("❌ Nombre, apellido y fecha de nacimiento son obligatorios.", is_success=False)
-            return False
-        
-        try:
-            datetime.date.fromisoformat(data.get('fecha_nacimiento'))
-        except (ValueError, TypeError):
-            self.vista.display_message("❌ Formato de Fecha de Nacimiento inválido. Use YYYY-MM-DD.", is_success=False)
             return False
             
         return True
@@ -77,7 +52,8 @@ class NNAControlador:
                 self.vista.display_message(f"✅ NNA '{data['primer_nombre']} {data['primer_apellido']}' creado.", is_success=True)
                 self.vista.limpiar_entradas()
             else:
-                self.vista.display_message(f"❌ Error al crear NNA: {resultado.get('message', 'Desconocido')}", is_success=False)
+                # El modelo maneja el mensaje de error de formato/BD
+                self.vista.display_message(f"❌ Error al crear NNA: {resultado.get('error', 'Desconocido')}", is_success=False)
                 
         except Exception as e:
             self.vista.display_message(f"❌ Error interno al crear NNA: {str(e)}", is_success=False)
@@ -106,15 +82,18 @@ class NNAControlador:
         if not self.vista or not nna_id or not self._validar_datos(data): return
         
         try:
-            # Clonar data y eliminar 'id' para pasarlo como kwargs
+            # CORRECCIÓN: Clonar data y eliminar 'id'. Se pasa el diccionario limpio al modelo.
             update_data = {k: v for k, v in data.items() if k != 'id'}
-            resultado = self.model.actualizar_nna(nna_id, **update_data)
+            
+            # CORRECCIÓN: Llamar al modelo pasando el diccionario 'update_data' directamente como el segundo argumento
+            resultado = self.model.actualizar_nna(nna_id, update_data)
             
             if resultado.get("status") == "success":
                 self.vista.display_message(f"✅ NNA ID {nna_id} actualizado.", is_success=True)
                 self.vista.limpiar_entradas()
             else:
-                self.vista.display_message(f"❌ Error al actualizar NNA: {resultado.get('message', 'Desconocido')}", is_success=False)
+                # El modelo maneja el mensaje de error de formato/BD
+                self.vista.display_message(f"❌ Error al actualizar NNA: {resultado.get('error', 'Desconocido')}", is_success=False)
                 
         except Exception as e:
             self.vista.display_message(f"❌ Error interno al actualizar NNA: {str(e)}", is_success=False)

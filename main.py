@@ -1,63 +1,48 @@
-# main.py
-
-import sys
 import os
+import sys
+import warnings 
 from tkinter import messagebox
 
-# ----------------------------------------------------------------------
-# Configuración del Path y Comprobación de Importaciones
-# ----------------------------------------------------------------------
+# Importamos el controlador aquí (antes de la Vista)
+from controllers.login_controllers import LoginController 
+from views.funcion_vista_login import LoginView 
+from views.menu import main as start_menu_app # Importamos la función 'main' de menu.py
 
-# Asegura que el directorio actual esté en el PATH para importaciones locales
+
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if current_dir not in sys.path:
         sys.path.append(current_dir)
 except NameError:
+    warnings.warn("Advertencia: No se pudo determinar el directorio actual para agregar al PATH. Las importaciones locales podrían fallar.", stacklevel=1)
     pass
 
-# Importar los componentes necesarios
-try:
-    # Módulos de Login
-    from views.funcion_vista_login import LoginView 
-    from controllers.login_controllers import LoginController 
-    
-    # Módulo del Menú Principal
-    from views.menu import main as start_menu_app # Importamos la función 'main' de menu.py
-
-except ImportError as e:
-    error_msg = f"Error al importar un módulo requerido. Verifique que 'login_controllers.py', 'funcion_vista_login.py' y 'menu.py' existan en la misma carpeta.\nError: {e}"
-    messagebox.showerror("❌ Error Crítico de Importación", error_msg)
-    sys.exit(1)
-
-
 # ----------------------------------------------------------------------
-# Función de Orquestación
+# Función de Orquestación (Corregida)
 # ----------------------------------------------------------------------
 
 def start_login_process():
-    """Inicializa y ejecuta el proceso de Login."""
+    """Inicializa y ejecuta el proceso de Login, conectando la Vista con el Controlador."""
     
-    # 1. Instanciar la Vista de Login
-    login_view = LoginView(controller=None) 
+    # 1. Crear una INSTANCIA de la Vista (sin pasarle el controlador aún)
+    login_view = LoginView() 
     
-    # 2. Instanciar el Controlador, pasándole la vista y el callback de éxito
-    controller = LoginController(
+    # 2. Crear una INSTANCIA del Controlador
+    # El controlador necesita:
+    # a) La instancia real de la vista (login_view) para manipularla.
+    # b) El callback (start_menu_app) para usarlo al iniciar sesión con éxito.
+    controller_instance = LoginController(
         login_view=login_view, 
-        success_callback=start_menu_app # El callback es la función main(role) de menu.py
+        success_callback=start_menu_app
     )
     
-    # 3. Asignar el controlador real a la vista
-    login_view.controller = controller
+    # 3. CONECTAR: Asignar la INSTANCIA del controlador a la vista.
+    # Esto resuelve el 'AttributeError: 'function' object has no attribute 'handle_login''
+    login_view.controller = controller_instance
     
-    # 4. Iniciar el bucle principal de la ventana de Login
-    # Cuando el login sea exitoso, el controlador llamará a start_menu_app(role)
+    # 4. Iniciar el bucle de la interfaz gráfica
     login_view.mainloop() 
 
-
-# ----------------------------------------------------------------------
-# PUNTO DE ENTRADA PRINCIPAL
-# ----------------------------------------------------------------------
 
 if __name__ == "__main__":
     start_login_process()
