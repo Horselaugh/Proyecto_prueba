@@ -2,14 +2,14 @@ import sys
 import os
 from typing import Dict, List, Optional
 import datetime
-import hashlib # Importar para simular el hashing de contraseñas
+import hashlib
 
-# Configuraciones de Path e importación del Modelo real o Mock
+# Configuraciones de Path e importación del Modelo real
 try:
-    # Intenta importar el modelo real y otros objetos necesarios
+    # Intenta importar el modelo real
     from models.personal_model import PersonalModel
 except ImportError:
-    # Mock si el modelo real no se encuentra
+    # Mock si el modelo real no se encuentra (MANTENER MOCK SOLO POR SI ACASO, PERO EL CÓDIGO USA EL REAL)
     class MockPersonalModel:
         # --- MOCK ACTUALIZADO PARA COINCIDIR CON LOS CAMPOS COMPLETOS DEL MODELO ---
         def obtener_por_id(self, id):
@@ -52,8 +52,7 @@ class PersonalControlador:
         # 💡 CORRECCIÓN/ADICIÓN: Mapeo inverso de cargos (útil para cargar datos)
         self.cargo_reverse_map: Dict[int, str] = {} 
         
-        # Mapeo de género: La base de datos solo acepta M/F, pero el UI podría querer "Otro".
-        # Asumimos que 'Otro' se mapea a 'O' y que la BD lo maneja o que el modelo lo limita.
+        # Mapeo de género: La base de datos solo acepta M/F/O.
         self.genero_map: Dict[str, str] = {"Femenino": "F", "Masculino": "M", "Otro": "O"}
         self.genero_reverse_map: Dict[str, str] = {v: k for k, v in self.genero_map.items()}
 
@@ -69,9 +68,11 @@ class PersonalControlador:
             # Cargar y mapear Cargos
             cargos_list = self.model.listar_cargos()
             self.cargo_map = {c['nombre']: c['id'] for c in cargos_list}
+            # 💡 CORRECCIÓN: Inicializar el mapeo inverso aquí
+            self.cargo_reverse_map = {c['id']: c['nombre'] for c in cargos_list}
             self.vista._cargar_cargos([c['nombre'] for c in cargos_list])
             
-            # 💡 CORRECCIÓN: Cargar Géneros directamente del mapeo del controlador
+            # Cargar Géneros directamente del mapeo del controlador
             generos_list = list(self.genero_map.keys()) # Obtiene ['Femenino', 'Masculino', 'Otro']
             self.vista._cargar_generos(generos_list)
             
@@ -91,6 +92,7 @@ class PersonalControlador:
             self.vista.display_message("❌ La contraseña es obligatoria para el registro.", is_success=False)
             return False
             
+        # 💡 CORRECCIÓN: Usar 'documento_identidad' como clave si fuera necesario, pero la vista envía 'cedula'. Mantenemos 'cedula' por consistencia con la vista.
         if not all(data.get(k) for k in obligatorios):
             self.vista.display_message("❌ Cédula, Nombre, Apellido, Teléfono y Usuario son obligatorios.", is_success=False)
             return False
@@ -103,6 +105,7 @@ class PersonalControlador:
 
     def _hashear_password(self, password: str) -> str:
         """Función dummy para hashear la contraseña antes de enviarla al modelo."""
+        # Nota: La codificación hash.sha256() es correcta para simular un hash simple.
         return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
     def handle_crear_personal(self, data: Dict):
@@ -114,8 +117,12 @@ class PersonalControlador:
             data['cargo'] = self.cargo_map[data['cargo']]
             data['genero'] = self.genero_map.get(data['genero'], "O") # Mapear nombre de género a código (M/F/O)
             
-            # 💡 Corrección: Hashear la contraseña antes de enviarla al Modelo
+            # Corrección: Hashear la contraseña antes de enviarla al Modelo
             data['password'] = self._hashear_password(data['password']) 
+            
+            # 💡 Corrección: El modelo espera 'cedula' pero la BD usa 'documento_identidad'.
+            # Mantenemos 'cedula' aquí ya que la vista lo usa y el modelo lo maneja.
+            # No se necesita una corrección aquí ya que el modelo lo extrae de `datos["cedula"]`.
             
             persona_id = self.model.agregar_personal(data)
             
@@ -146,13 +153,15 @@ class PersonalControlador:
                 # 1. Obtener nombre del cargo
                 # 💡 CORRECCIÓN: Usar el mapeo inverso (self.cargo_reverse_map)
                 cargo_nombre = self.cargo_reverse_map.get(resultado['cargo'], "Desconocido")
-                resultado['cargo_nombre'] = cargo_nombre
+                resultado['cargo_nombre'] = cargo_nombre # Nueva clave que la vista espera
                 
                 # 2. Obtener nombre completo del género
                 resultado['genero'] = self.genero_reverse_map.get(resultado['genero'], resultado['genero'])
                 
                 # Asignar la clave 'id' para que la vista lo use
                 resultado['id'] = resultado['persona_id'] 
+                
+                # La vista espera 'documento_identidad' para la variable 'cedula_var'
                 
                 self.vista.display_message(f"✅ Personal '{resultado['primer_nombre']} {resultado['primer_apellido']}' cargado.", is_success=True)
                 self.vista._establecer_datos_formulario(resultado)
@@ -168,7 +177,7 @@ class PersonalControlador:
         """Maneja la actualización y actualiza la vista."""
         personal_id = data.get('id')
         
-        # 💡 Corrección: Manejar el hash de la contraseña si se modificó
+        # Manejar el hash de la contraseña si se modificó
         password_raw = data.get('password')
         if password_raw == "********":
             data.pop('password', None) # No enviar la contraseña al modelo
@@ -185,7 +194,7 @@ class PersonalControlador:
             # El modelo espera 'persona_id'
             data['persona_id'] = personal_id 
             
-            # 💡 Corrección: Pasar el diccionario de datos completo al modelo
+            # Corrección: Pasar el diccionario de datos completo al modelo
             resultado = self.model.actualizar_personal(data) 
             
             if resultado: 

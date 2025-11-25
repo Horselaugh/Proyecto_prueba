@@ -3,79 +3,59 @@ from tkinter import messagebox
 from typing import Dict, List, Optional
 import datetime
 
-# ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL) - ACTUALIZADO
-# ----------------------------------------------------------------------
-class MockPersonalModel:
-    def obtener_por_id(self, id):
-        if id == 1:
-            # La Vista espera estos campos ya procesados por el Controlador
+# IMPORTAR CONTROLADOR REAL O MOCK
+try:
+    # Intenta importar el controlador real (esto podría causar un error circular si se ejecuta solo)
+    from controllers.personal_controller import PersonalControlador
+except ImportError:
+    # MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola) - AJUSTADO
+    class MockPersonalModel:
+        def obtener_por_id(self, id):
             return {
                 "id": 1, 
-                "documento_identidad": "V12345678", # Clave correcta para la cédula
-                "primer_nombre": "Juan", 
-                "segundo_nombre": "Carlos", # Añadido
-                "primer_apellido": "Pérez", 
-                "segundo_apellido": "Rojas", # Añadido
-                "telefono": "04141234567",
-                "direccion": "Calle Falsa 123", # Añadido
-                "genero": "Masculino", # Nombre completo (mapeado por Controller)
-                "cargo_id": 1, 
-                "nombre_usuario": "jperez", # Añadido
-                "resolucion": "N/A"
+                "documento_identidad": "V12345678",
+                "primer_nombre": "Juan", "segundo_nombre": "Carlos", 
+                "primer_apellido": "Pérez", "segundo_apellido": "Rojas", 
+                "telefono": "04141234567", "direccion": "Calle Falsa 123", 
+                "genero": "Masculino", "cargo": 1, "nombre_usuario": "jperez", "resolucion": "N/A"
             }
-        return None
-        
-    def obtener_por_cedula(self, cedula): # Añadido para consistencia
-        if cedula == "V12345678":
-            return self.obtener_por_id(1)
-        return None
-
-    def agregar_personal(self, datos): return 2 
-    # El método actualizar_personal de la vista MOCK recibe 'data'
-    def actualizar_personal(self, data): return True 
-    def eliminar_personal(self, id): return True 
-    
-    def listar_generos(self): return ["Femenino", "Masculino", "Otro"]
-    def listar_cargos(self): return [{"id": 1, "nombre": "Coordinador"}, {"id": 2, "nombre": "Secretario"}]
-
-# ----------------------------------------------------------------------
-# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola) - AJUSTADO
-# ----------------------------------------------------------------------
-class PersonalControlador:
-    def __init__(self):
-        self.modelo = MockPersonalModel() 
-        self.vista = None
-        self.cargo_map: Dict[str, int] = {}
-        self.genero_map: Dict[str, str] = {"Femenino": "F", "Masculino": "M", "Otro": "O"}
-
-    def set_view(self, view_instance): self.vista = view_instance
-        
-    def load_initial_data(self):
-        cargos = self.modelo.listar_cargos()
-        generos = self.modelo.listar_generos()
-        self.cargo_map = {c['nombre']: c['id'] for c in cargos}
-        self.vista._cargar_cargos([c['nombre'] for c in cargos])
-        self.vista._cargar_generos(generos)
-        self.vista.display_message("Listo para gestionar Personal. Ingrese ID/Cédula para buscar. 🔎", is_success=True)
-
-    def handle_crear_personal(self, *args): self.vista.display_message("Mock: Crear Personal", True)
-    
-    def handle_cargar_personal(self, id_or_cedula): 
-        resultado = self.modelo.obtener_por_id(1) # Siempre carga el mock ID 1
-        if resultado:
-            # Simular mapeo de cargo (el controlador real lo haría)
-            cargo_nombre = next((c['nombre'] for c, i in self.cargo_map.items() if i == resultado['cargo_id']), "Desconocido")
-            resultado['cargo_nombre'] = cargo_nombre
             
-            self.vista._establecer_datos_formulario(resultado)
-            self.vista.display_message("Mock: Personal cargado (ID 1)", True)
-        else:
-            self.vista.display_message("Mock: Personal no encontrado", False)
-            self.vista.limpiar_entradas(clean_search=False)
+        def listar_cargos(self): return [{"id": 1, "nombre": "Coordinador"}, {"id": 2, "nombre": "Secretario"}]
+    
+    class PersonalControlador:
+        def __init__(self):
+            self.modelo = MockPersonalModel() 
+            self.vista = None
+            self.cargo_map: Dict[str, int] = {c['nombre']: c['id'] for c in self.modelo.listar_cargos()}
+            self.genero_map: Dict[str, str] = {"Femenino": "F", "Masculino": "M", "Otro": "O"}
+
+        def set_view(self, view_instance): self.vista = view_instance
             
-    def handle_actualizar_personal(self, *args): self.vista.display_message("Mock: Actualizar Personal", True)
-    def handle_eliminar_personal(self, *args): self.vista.display_message("Mock: Eliminar Personal", True)
+        def load_initial_data(self):
+            cargos = self.modelo.listar_cargos()
+            generos = ["Femenino", "Masculino", "Otro"]
+            self.vista._cargar_cargos([c['nombre'] for c in cargos])
+            self.vista._cargar_generos(generos)
+            self.vista.display_message("Mock: Listo. Ingrese ID/Cédula para buscar. 🔎", is_success=True)
+
+        def handle_crear_personal(self, *args): self.vista.display_message("Mock: Crear Personal", True)
+        
+        def handle_cargar_personal(self, id_or_cedula): 
+            resultado = self.modelo.obtener_por_id(1)
+            if resultado:
+                # Simular mapeo de cargo que haría el controlador real
+                cargo_nombre = "Coordinador" 
+                resultado['cargo_nombre'] = cargo_nombre
+                resultado['id'] = resultado.pop('cargo') # Cambiar clave 'cargo' por 'id' que usa el controlador
+                
+                self.vista._establecer_datos_formulario(resultado)
+                self.vista.display_message("Mock: Personal cargado (ID 1)", True)
+            else:
+                self.vista.display_message("Mock: Personal no encontrado", False)
+                self.vista.limpiar_entradas(clean_search=False)
+                
+        def handle_actualizar_personal(self, *args): self.vista.display_message("Mock: Actualizar Personal", True)
+        def handle_eliminar_personal(self, *args): self.vista.display_message("Mock: Eliminar Personal", True)
 
 
 # ----------------------------------------------------------------------
@@ -293,6 +273,7 @@ class PersonalViewFrame(ctk.CTkFrame):
         
     def _establecer_datos_formulario(self, data: dict): 
         """Establece los valores en los campos de entrada y habilita botones."""
+        # 💡 CORRECCIÓN: La clave es 'documento_identidad' del modelo, no 'cedula'
         self.cedula_var.set(data.get("documento_identidad", "") or "")
         self.p_nombre_var.set(data.get("primer_nombre", "") or "")
         self.s_nombre_var.set(data.get("segundo_nombre", "") or "")
@@ -303,11 +284,12 @@ class PersonalViewFrame(ctk.CTkFrame):
         
         # Cargar Género y Cargo
         self.genero_var.set(data.get("genero", self.genero_var.cget("value")))
-        self.cargo_var.set(data.get("cargo_nombre", self.cargo_var.cget("value")))
-
+        self.cargo_var.set(data.get("cargo_nombre", self.cargo_var.cget("value"))) # Clave correcta 'cargo_nombre'
+        
         self.usuario_var.set(data.get("nombre_usuario", "") or "")
         self.password_var.set("********") # Nunca cargar la contraseña real
         
+        # La clave es 'id' (asignada por el controlador), no 'persona_id'
         self.personal_id_cargado = data.get("id")
         self.buscar_var.set(str(data.get("id", "")))
         self._set_btn_state("normal")
@@ -316,13 +298,17 @@ class PersonalViewFrame(ctk.CTkFrame):
         """Carga las opciones en el ComboBox de Género."""
         if generos:
             self.genero_combo.configure(values=generos)
-            self.genero_var.set(generos[0])
+            # 💡 CORRECCIÓN: Evitar error si la lista está vacía, aunque en teoría no debería pasar.
+            if self.genero_var.get() not in generos:
+                self.genero_var.set(generos[0])
             
     def _cargar_cargos(self, cargos: List[str]):
         """Carga las opciones en el ComboBox de Cargo."""
         if cargos:
             self.cargo_combo.configure(values=cargos)
-            self.cargo_var.set(cargos[0])
+            # 💡 CORRECCIÓN: Evitar error si la lista está vacía.
+            if self.cargo_var.get() not in cargos:
+                self.cargo_var.set(cargos[0])
         
     def _set_btn_state(self, state):
         """Habilita o deshabilita los botones de Modificar/Eliminar."""

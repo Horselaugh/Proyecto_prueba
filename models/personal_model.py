@@ -34,15 +34,15 @@ class PersonalModel:
             "persona_id": fila["id"],
             "documento_identidad": fila["documento_identidad"],
             "primer_nombre": fila["primer_nombre"],
-            "segundo_nombre": fila.get("segundo_nombre"), # Añadido
+            "segundo_nombre": fila.get("segundo_nombre"), 
             "primer_apellido": fila["primer_apellido"],
-            "segundo_apellido": fila.get("segundo_apellido"), # Añadido
+            "segundo_apellido": fila.get("segundo_apellido"), 
             "telefono": fila["telefono"],
-            "direccion": fila.get("direccion"), # Añadido
-            "genero": fila.get("genero"), # Código de género (M/F/O)
+            "direccion": fila.get("direccion"), 
+            "genero": fila.get("genero"), 
             "cargo": fila["cargo"],
             "resolucion": fila["resolucion"],
-            "nombre_usuario": fila.get("nombre_usuario"), # Añadido (desde tabla 'usuario')
+            "nombre_usuario": fila.get("nombre_usuario"), 
             "activo": bool(fila["activo"])
         }
 
@@ -73,7 +73,7 @@ class PersonalModel:
         try:
             cursor = conexion.cursor()
             
-            # 1. Ejecutar INSERT en persona
+            # 1. Ejecutar INSERT en persona (usa 'cedula' de la entrada, mapeado a 'documento_identidad')
             cursor.execute(sql_persona, (
                 datos["cedula"], datos["primer_nombre"], datos.get("segundo_nombre"),
                 datos["primer_apellido"], datos.get("segundo_apellido"), 
@@ -82,15 +82,17 @@ class PersonalModel:
             persona_id = cursor.lastrowid
             
             # 2. Ejecutar INSERT en personal
+            # Asumimos que datos.get("cargo") ya es el ID de cargo.
             cursor.execute(sql_personal, (
                 persona_id, 
                 datos.get("cargo"), 
                 datos.get("resolucion")
             ))
             
-            # 3. Ejecutar INSERT en usuario (el controlador debe enviar el hash de la contraseña)
+            # 3. Ejecutar INSERT en usuario
             password_hash = datos.get("password")
             if not password_hash:
+                 # Esta excepción debería ser prevenida por la validación del controlador, pero se mantiene como seguridad.
                  raise ValueError("La contraseña hasheada es requerida para el registro de usuario.")
 
             cursor.execute(sql_usuario, (
@@ -221,14 +223,14 @@ class PersonalModel:
         WHERE persona_id = ?;
         """
         
-        # 💡 Actualizar nombre de usuario
+        # Actualizar nombre de usuario
         sql_usuario = """
         UPDATE usuario SET 
             nombre_usuario = ?
         WHERE persona_id = ?;
         """
         
-        # 💡 Actualizar hash de la contraseña (solo si se provee uno nuevo)
+        # Actualizar hash de la contraseña (solo si se provee uno nuevo)
         sql_password_update = """
         UPDATE usuario SET 
             password_hash = ?
@@ -242,7 +244,7 @@ class PersonalModel:
         try:
             cursor = conexion.cursor()
             
-            # 1. Actualizar Persona (ahora incluye segundo_nombre, segundo_apellido, direccion, genero)
+            # 1. Actualizar Persona (usa 'cedula' de la entrada, mapeado a 'documento_identidad')
             cursor.execute(sql_persona, (
                 datos.get("cedula"), datos.get("primer_nombre"), datos.get("segundo_nombre"),
                 datos.get("primer_apellido"), datos.get("segundo_apellido"), 

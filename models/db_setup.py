@@ -29,23 +29,34 @@ class CreateDatabase:
         try:
             print(f"[INFO] Usando base de datos: {self.db_archivo}")
             
-            # Primero crear una conexión temporal para verificar
             temp_conn = sqlite3.connect(self.db_archivo)
             cursor = temp_conn.cursor()
             
-            # Verificar si la tabla persona existe (como indicador principal)
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='persona'")
-            tabla_persona_existe = cursor.fetchone()
+            # --- MODIFICACIÓN CLAVE: Verificar si la tabla 'cargo' existe Y tiene datos ---
+            # Si el código de creación de tablas falla a mitad, 'persona' puede existir,
+            # pero el catálogo podría estar vacío.
+            
+            # 1. Verificar existencia de la tabla
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cargo'")
+            tabla_catalogo_existe = cursor.fetchone()
+            
+            # 2. Verificar si hay datos en la tabla de catálogo (si existe)
+            datos_catalogo_existen = False
+            if tabla_catalogo_existe:
+                cursor.execute("SELECT COUNT(*) FROM cargo")
+                if cursor.fetchone()[0] > 0:
+                    datos_catalogo_existen = True
             
             temp_conn.close()
             
-            if not tabla_persona_existe:
-                print("[INIT] Inicializando base de datos por primera vez...")
+            # El sistema se inicializa solo si NO existe la tabla o si la tabla existe pero está vacía
+            if not tabla_catalogo_existe or not datos_catalogo_existen:
+                print("[INIT] Inicializando base de datos por primera vez o re-insertando catálogo...")
                 self._crear_tablas()
                 self._insertar_datos_catalogo()
                 print("[OK] Base de datos inicializada correctamente")
             else:
-                print("[OK] Base de datos ya está inicializada")
+                print("[OK] Base de datos ya está inicializada (se encontró catálogo con datos)")
                 
         except Error as e:
             print(f"[ERROR] Error al verificar/inicializar base de datos: {e}")
