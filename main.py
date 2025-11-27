@@ -1,7 +1,6 @@
 import os
 import sys
 import warnings 
-from tkinter import messagebox
 
 # Importamos el controlador aquí (antes de la Vista)
 from controllers.login_controllers import LoginController 

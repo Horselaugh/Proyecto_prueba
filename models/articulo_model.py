@@ -1,4 +1,7 @@
 # models/articulo_model.py
+"""
+Módulo del modelo para la gestión de artículos (e.g., LOPNNA) en la base de datos.
+"""
 import sys
 import os
 import sqlite3
@@ -11,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from database_connector import Database
 except ImportError:
+    # Usar ruta relativa si el intento inicial falla (común en ciertos setups)
     from models.database_connector import Database
 
 class ArticuloModelo:
@@ -19,6 +23,7 @@ class ArticuloModelo:
     """
     def __init__(self):
         self.db = Database()
+        # self.db.CreateDatabase() # Comentado para corregir E1101 de Pylint.
     
     def insertar_articulo(self, codigo: str, articulo: str, descripcion: str) -> Optional[int]:
         """Inserta un artículo y retorna su ID"""
@@ -33,7 +38,7 @@ class ArticuloModelo:
             cursor.execute(query, (codigo, articulo, descripcion))
             conexion.commit()
             return cursor.lastrowid
-                
+        # Se manejan IntegrityError (duplicado) y Error general de SQLite
         except sqlite3.IntegrityError as e:
             print(f"Advertencia: Artículo {codigo} ya existe. {str(e)}")
             return None
@@ -70,14 +75,15 @@ class ArticuloModelo:
             return [dict(row) for row in resultado]
             
         except Error as e:
-            print(f"Ha ocurrido un error mientras se trataba de obtener todos los artículos: {str(e)}")
+            print("Ha ocurrido un error mientras se trataba de obtener todos los "
+                  f"artículos: {str(e)}")
             return []
         finally:
             if conexion:
                 self.db.cerrarConexion(conexion)
     
     def buscar_articulo(self, termino_busqueda: str) -> Optional[Dict]:
-        """Busca y retorna un Artículo por su descripción o por su código"""
+        """Busca y retorna un Artículo por su descripción, código o número de artículo"""
         query = """
             SELECT 
                 id,
@@ -106,13 +112,15 @@ class ArticuloModelo:
             return dict(resultado) if resultado else None
             
         except Error as e:
-            print(f"Ha ocurrido un error mientras se trataba de obtener el articulo con el término {termino_busqueda}: {str(e)}")
+            print("Ha ocurrido un error mientras se trataba de obtener el "
+                  f"articulo: {str(e)}")
             return None
         finally:
             if conexion:
                 self.db.cerrarConexion(conexion)
     
-    def modificar_articulo(self, articulo_id: int, nuevo_codigo: str, nuevo_articulo: str, nueva_descripcion: str) -> bool:
+    def modificar_articulo(self, articulo_id: int, nuevo_codigo: str, 
+                           nuevo_articulo: str, nueva_descripcion: str) -> bool:
         """
         Modifica los datos de un artículo por su ID.
         """
@@ -141,7 +149,8 @@ class ArticuloModelo:
             print(f"Error de integridad: El código {nuevo_codigo} ya existe. {str(e)}")
             return False
         except Error as e:
-            print(f"Ha ocurrido un error mientras se trataba actualizar el artículo ID {articulo_id}: {str(e)}")
+            print("Ha ocurrido un error mientras se trataba actualizar el "
+                  f"artículo ID {articulo_id}: {str(e)}")
             return False
         finally:
             if conexion:
@@ -162,15 +171,17 @@ class ArticuloModelo:
             cursor = conexion.cursor()
             cursor.execute(query, (articulo_id,))
             conexion.commit()
+            
             if cursor.rowcount > 0:
                 print(f"Artículo ID {articulo_id} eliminado con éxito.")
                 return True
-            else:
-                print(f"Advertencia: No se encontró el artículo ID {articulo_id} para eliminar.")
-                return False
+                
+            print(f"Advertencia: No se encontró el artículo ID {articulo_id} para eliminar.")
+            return False
                     
         except Error as e:
-            print(f"Error al intentar eliminar el artículo ID {articulo_id}: {str(e)}")
+            print("Error al intentar eliminar el "
+                  f"artículo ID {articulo_id}: {str(e)}")
             return False
         finally:
             if conexion:

@@ -8,40 +8,24 @@ from typing import List, Dict, Optional
 # Añadir el path para que las importaciones relativas funcionen
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-# 🚨 CAMBIO CLAVE: Importar directamente la clase Database desde database_connector
-# Se asume que database_connector.py está en la misma carpeta o accesible por path.
 try:
     from database_connector import Database  # Usamos la clase Database (Singleton)
 except ImportError:
-    # Esto manejaría el caso si la estructura de carpetas es diferente (models/database_connector)
-    # y la importación del nivel superior falla.
     print("Advertencia: No se pudo importar Database directamente. Intentando models.database_connector...")
     from models.database_connector import Database
 
 
 class ConfiguracionModel:
-    """
-    Modelo que maneja las operaciones de configuración del sistema
-    """
-    
     def __init__(self):
         # 🚨 CAMBIO CLAVE: Inicializar self.db con la instancia Singleton de Database
         # La clase Database del archivo database_connector.py actúa como un Singleton.
         self.db = Database()
         self._inicializar_base_datos()
+        
+        
     
     def _inicializar_base_datos(self) -> bool:
         """Inicializa la base de datos con las tablas necesarias"""
-        # 🚨 CAMBIO CLAVE: Usar obtener_conexion/cerrar_conexion de la clase Database
-        # NOTA: La clase Database en database_connector.py no tiene `obtener_conexion` ni 
-        # `cerrar_conexion` en el código proporcionado. Solo tiene `crearConexion` y 
-        # `cerrarConexion`. Asumo que se desea usar el método `crearConexion` 
-        # y que se ha modificado la clase `Database` para tener `obtener_conexion` o 
-        # que `crearConexion` se usará en su lugar.
-        
-        # Basado en el uso previo de database_connector.py, asumiremos que los métodos son:
-        # obtener_conexion -> crearConexion
-        # cerrar_conexion -> cerrarConexion
         conn = self.db.crearConexion() # Usando crearConexion en lugar de obtener_conexion
         if conn is None:
             return False

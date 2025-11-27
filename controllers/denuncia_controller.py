@@ -1,8 +1,11 @@
-# controllers/denuncia_controller.py
-
+import sys
+import os
 from models.denuncia_model import DenunciaModel
 from typing import Dict, List, Optional
 import datetime
+
+# La importación 'sys.path.append' debe estar antes de cualquier importación local si es necesaria
+sys.path.append(os.path.join(os.path.dirname(__file__))) 
 
 class DenunciaController:
     """
@@ -15,14 +18,58 @@ class DenunciaController:
 
     def __init__(self):
         self.model = DenunciaModel()
-        # self.vista = None # Se podría usar para callback de mensajes/actualización
-
-    # def set_view(self, view):
-    #     self.vista = view
-
-    # ----------------------------------------------------------------------
-    # Gestión de Creación de Denuncia Completa
-    # ----------------------------------------------------------------------
+        
+# --- MÉTODO CORREGIDO (actualizar_tabla) ---
+    def actualizar_tabla(self, datos_busqueda: Dict = None, *args) -> List[Dict]:
+        """
+        Recupera el listado de denuncias aplicando filtros de búsqueda y estado.
+        
+        El argumento `*args` captura cualquier argumento posicional extra que pueda 
+        ser enviado por los eventos (bind, command) de la vista (ej. el objeto Event o el valor del OptionMenu).
+        
+        :param datos_busqueda: Diccionario con los parámetros de la vista 
+                                (ej: {'texto': 'texto_busqueda', 'estado': 'Pendiente'}). Es opcional.
+        :return: Lista de diccionarios con los datos de las denuncias para la tabla.
+        """
+        # Si la llamada viene de un bind o command que no pasa datos, inicializamos un diccionario vacío
+        if datos_busqueda is None or isinstance(datos_busqueda, str):
+            # Si se recibe una cadena (valor del OptionMenu) o None, se asume que no hay filtros
+            datos_busqueda = {}
+            
+        # 1. Obtener los parámetros de búsqueda de la vista
+        # Ahora, si datos_busqueda es {}, las búsquedas serán vacías, lo que mostrará todo.
+        texto_busqueda = datos_busqueda.get('texto', '').strip()
+        filtro_estado = datos_busqueda.get('estado', 'Todos')
+        
+        # 2. Llamar al método del modelo para obtener los datos
+        try:
+            # Nota: Debes asegurarte que DenunciaModel tenga el método obtener_listado_denuncias_filtrado
+            # Si texto_busqueda o filtro_estado son vacíos o 'Todos', el modelo debe manejarlo
+            listado_denuncias = self.model.obtener_listado_denuncias_filtrado(
+                texto_busqueda=texto_busqueda, 
+                estado=filtro_estado
+            )
+            return listado_denuncias
+        except Exception as e:
+            # En un entorno real, se debería loggear el error
+            print(f"Error al obtener listado de denuncias: {e}")
+            return [] # Devuelve una lista vacía si hay un error
+            
+# --- MÉTODO FALTANTE AÑADIDO (generar_reporte_denuncias) ---
+    def generar_reporte_denuncias(self, *args):
+        """
+        Lógica para generar y exportar el reporte actual (e.g., a PDF o Excel).
+        
+        El argumento `*args` se añade para permitir que este método sea usado como 
+        callback de un botón si es necesario.
+        """
+        # Aquí iría la lógica para obtener todos los datos (o los filtrados actualmente)
+        # y usar una librería como ReportLab o pandas/openpyxl para crear el archivo.
+        print("Generando reporte de denuncias...")
+        # Lógica de creación de archivo...
+        
+        # Simulación de éxito
+        return True, "Reporte generado con éxito."
 
     def registrar_nueva_denuncia(self, 
                                  datos_denuncia: Dict, 

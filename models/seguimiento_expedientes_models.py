@@ -1,15 +1,21 @@
 import os
+import sys
 from datetime import datetime, date
 from typing import List, Optional, Dict
 import psycopg2
 import psycopg2.extras
 
+# Agregar el directorio actual al path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from database_connector import Database
+except ImportError:
+    from models.database_connector import Database
+
 class SeguimientoModel:
-    def __init__(self, dsn: Optional[str] = None):
-        self.dsn = dsn or os.getenv("DATABASE_URL")
-        if not self.dsn:
-            raise RuntimeError("DATABASE_URL no definido. Define la variable de entorno con la cadena de conexión a PostgreSQL.")
-        self._ensure_table()
+    def __init__(self):
+        self.db = Database()
 
     def _get_conn(self):
         conn = psycopg2.connect(self.dsn)
@@ -32,7 +38,27 @@ class SeguimientoModel:
                     cur.execute(sql)
         finally:
             conn.close()
-
+            
+    def listar_expedientes(self) -> List[Dict]:
+        """
+        Obtiene la lista de todos los expedientes disponibles (ID, título, estado).
+        NOTA: Asume la existencia de una tabla 'expedientes'.
+        """
+        query = "SELECT id, titulo, estado FROM expedientes ORDER BY id ASC;"
+        conn = self._get_conn()
+        try:
+            with conn:
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute(query)
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
+        except psycopg2.errors.UndefinedTable:
+            # Manejo de error si la tabla 'expedientes' no existe aún
+            print("AVISO: La tabla 'expedientes' no existe. Retornando lista vacía.")
+            return []
+        finally:
+            conn.close()
+            
     def registrar_seguimiento(self, expediente_id: int, comentario: str, fecha: Optional[str] = None) -> int:
         if fecha and fecha.strip():
             try:

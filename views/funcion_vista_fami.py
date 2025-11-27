@@ -1,7 +1,5 @@
-# funcion_vista_fami.py
-
 import customtkinter as ctk
-from tkinter import messagebox, N, S, E, W
+from tkinter import messagebox
 from typing import Dict, List, Optional
 import sys
 import os
@@ -59,12 +57,12 @@ class FamiliarViewFrame(ctk.CTkFrame):
         self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
 
         # Contenedor principal para el formulario
-        main_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=10)
-        main_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
-        main_frame.columnconfigure(0, weight=1)
+        scroll_frame = ctk.CTkScrollableFrame(self, fg_color="#111111", corner_radius=10, label_text="DATOS PERSONALES")
+        scroll_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        scroll_frame.columnconfigure((0, 1), weight=1)
         
         # Sección de Búsqueda
-        search_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        search_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
         search_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
         search_frame.columnconfigure(0, weight=1)
         
@@ -77,37 +75,36 @@ class FamiliarViewFrame(ctk.CTkFrame):
                       fg_color="#3498db", hover_color="#2980b9").grid(row=1, column=1, padx=(10, 0), pady=(0, 10))
 
         # Separador
-        ctk.CTkFrame(main_frame, height=2, fg_color="#555555").grid(row=1, column=0, sticky="ew", padx=20)
+        ctk.CTkFrame(scroll_frame, height=2, fg_color="#555555").grid(row=1, column=0, sticky="ew", padx=20)
         
         # Sección de Formulario (GRID dentro de main_frame)
-        form_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        form_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
-        form_frame.columnconfigure((0, 1), weight=1)
+        scroll_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        scroll_frame.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        scroll_frame.columnconfigure((0, 1), weight=1)
         
         # Fila 0: Nombre y Apellido
-        self._add_field(form_frame, 0, "Primer Nombre:", self.nombre_var)
-        self._add_field(form_frame, 1, "Primer Apellido:", self.apellido_var)
+        self._add_field(scroll_frame, 0, "Primer Nombre:", self.nombre_var)
+        self._add_field(scroll_frame, 1, "Primer Apellido:", self.apellido_var)
         
         # Fila 2: Teléfono y Parentesco
-        self._add_field(form_frame, 2, "Teléfono:", self.telefono_var)
+        self._add_field(scroll_frame, 2, "Teléfono:", self.telefono_var)
 
         # Dropdown para Parentesco
-        ctk.CTkLabel(form_frame, text="Parentesco:", font=("Arial", 14)).grid(row=2, column=1, sticky="w", padx=10, pady=(10, 5))
-        self.parentesco_dropdown = ctk.CTkComboBox(form_frame, variable=self.parentesco_var, values=["Cargando..."], height=40)
+        ctk.CTkLabel(scroll_frame, text="Parentesco:", font=("Arial", 14)).grid(row=2, column=1, sticky="w", padx=10, pady=(10, 5))
+        self.parentesco_dropdown = ctk.CTkComboBox(scroll_frame, variable=self.parentesco_var, values=["Cargando..."], height=40)
         self.parentesco_dropdown.grid(row=3, column=1, sticky="ew", padx=10, pady=(0, 5))
 
         # Fila 4: Dirección (ocupa 2 columnas)
-        ctk.CTkLabel(form_frame, text="Dirección:", font=("Arial", 14)).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
-        self.direccion_entry = ctk.CTkEntry(form_frame, textvariable=self.direccion_var, height=40)
+        ctk.CTkLabel(scroll_frame, text="Dirección:", font=("Arial", 14)).grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 5))
+        self.direccion_entry = ctk.CTkEntry(scroll_frame, textvariable=self.direccion_var, height=40)
         self.direccion_entry.grid(row=5, column=0, columnspan=2, sticky="ew", padx=10, pady=(0, 10))
 
         # Fila 6: Checkbox Tutor
-        ctk.CTkCheckBox(form_frame, text="¿Es Tutor Legal?", variable=self.tutor_var, 
+        ctk.CTkCheckBox(scroll_frame, text="¿Es Tutor Legal?", variable=self.tutor_var, 
                         font=("Arial", 14)).grid(row=6, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 10))
 
-
         # Frame de Botones
-        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
         button_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="ew")
         
         # Botones (Delegación de eventos al controlador a través de métodos de la vista)
@@ -148,7 +145,7 @@ class FamiliarViewFrame(ctk.CTkFrame):
             self.display_message("❌ Ingrese un ID numérico para buscar.", is_success=False)
             self.limpiar_entradas(clean_search=False)
 
-            
+ 
     def _handle_actualizar_familiar(self):
         if not self.familiar_id_cargado:
             self.display_message("❌ Primero debe buscar y cargar un familiar para modificarlo.", is_success=False)

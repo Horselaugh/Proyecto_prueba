@@ -3,44 +3,12 @@ import os
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-# ----------------------------------------------------------------------
-# MOCKS (TEMPORAL) - Simulando el Modelo de Seguimiento y de Expedientes
-# ----------------------------------------------------------------------
-class MockSeguimientoModel:
-    def registrar_seguimiento(self, expediente_id: int, comentario: str, fecha: Optional[str] = None) -> Dict[str, Any]:
-        # Simula el registro y devuelve un ID
-        return {"status": "success", "id": 101, "message": f"Seguimiento registrado para EXP {expediente_id}"}
-        
-    def obtener_seguimientos(self, expediente_id: Optional[int] = None, desde: Optional[str] = None, hasta: Optional[str] = None) -> List[Dict]:
-        # Simula la consulta con filtros
-        mock_data = [
-            {"id": 1, "expediente_id": 10, "comentario": "Evaluación inicial de caso.", "fecha": "2024-10-01", "creado_en": "2024-10-01 10:00:00"},
-            {"id": 2, "expediente_id": 10, "comentario": "Reunión con familiar directo para plan de acción.", "fecha": "2024-10-05", "creado_en": "2024-10-05 14:30:00"},
-            {"id": 3, "expediente_id": 15, "comentario": "Alerta de riesgo activada en la unidad educativa.", "fecha": "2024-10-10", "creado_en": "2024-10-10 09:00:00"},
-            {"id": 4, "expediente_id": 10, "comentario": "Visita domiciliaria, estado del NNA es estable.", "fecha": "2024-10-15", "creado_en": "2024-10-15 11:20:00"},
-        ]
-        
-        # Simulación de filtrado (muy básico)
-        if expediente_id:
-            mock_data = [d for d in mock_data if d['expediente_id'] == expediente_id]
-        return mock_data
-
-class MockExpedienteModel:
-    """Simulación para listar los expedientes disponibles."""
-    def listar_expedientes(self):
-        return [
-            {"id": 10, "titulo": "Caso NNA Juan P.", "estado": "Abierto"},
-            {"id": 15, "titulo": "Caso NNA María L.", "estado": "Abierto"},
-            {"id": 20, "titulo": "Caso NNA Cerrado", "estado": "Cerrado"},
-        ]
+sys.path.append(os.path.join(os.path.dirname(__file__))) 
 
 try:
     from models.seguimiento_expedientes_models import SeguimientoModel
-    # Se asume que el ExpedienteModel se importa de su propio controlador/modelo
-    # from controllers.expediente_controller import ExpedienteModel 
-except ImportError:
-    SeguimientoModel = MockSeguimientoModel
-    ExpedienteModel = MockExpedienteModel
+except ImportError as e:
+    raise ImportError(f"No se pudo importar ArticuloModelo: {e}")
     
     
 class SeguimientoExpedienteControlador:
@@ -49,7 +17,7 @@ class SeguimientoExpedienteControlador:
     def __init__(self):
         self.vista = None
         self.model = SeguimientoModel()
-        self.exp_model = ExpedienteModel() # Para listar expedientes
+        self.exp_model = SeguimientoModel() # Para listar expedientes
         self.expediente_map: Dict[str, int] = {} # Mapeo de cadena de ComboBox a ID
         
     def set_view(self, view_instance):
@@ -73,6 +41,7 @@ class SeguimientoExpedienteControlador:
             
             # Cargar el historial completo inicialmente
             self.handle_listar_seguimientos() 
+            
 
         except Exception as e:
             self.vista.display_message(f"❌ Error al cargar datos iniciales: {str(e)}", is_success=False)
@@ -131,3 +100,6 @@ class SeguimientoExpedienteControlador:
     def get_expediente_id_from_str(self, expediente_str: str) -> Optional[int]:
         """Obtiene el ID del expediente a partir de la cadena seleccionada."""
         return self.expediente_map.get(expediente_str)
+    
+
+

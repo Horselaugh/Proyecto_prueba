@@ -1,22 +1,15 @@
 import sys
 import os
-from database_connector import Database # Importar la clase Database del Singleton
 from sqlite3 import Error, IntegrityError
 from typing import Dict, List, Optional
 
-# Añadir el path para que las importaciones relativas funcionen
-sys.path.append(os.path.join(os.path.dirname(__file__)))
+sys.path.append(os.path.join(os.path.dirname(__file__))) 
 
-# 🚨 CAMBIO CLAVE: Importar directamente la clase Database desde database_connector
-# Se asume que database_connector.py está en la misma carpeta o accesible por path.
 try:
-    from database_connector import Database  # Usamos la clase Database (Singleton)
-except ImportError:
-    # Esto manejaría el caso si la estructura de carpetas es diferente (models/database_connector)
-    # y la importación del nivel superior falla.
-    print("Advertencia: No se pudo importar Database directamente. Intentando models.database_connector...")
-    from models.database_connector import Database
-
+    from .database_connector import Database # Importación relativa corregida
+except ImportError as e:
+    raise ImportError(f"No se pudo importar ArticuloModelo: {e}")
+    
 class DenunciaModel:
 
     def __init__(self):

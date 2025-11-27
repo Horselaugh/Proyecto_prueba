@@ -9,7 +9,7 @@ class CreateDatabase:
         if db_archivo is None:
             # Obtener el directorio actual del archivo
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            # Crear la ruta completa en la carpeta models
+            # Crear la ruta completa
             db_archivo = os.path.join(current_dir, "Proyecto_ultima.db")
         
         self.db_archivo = db_archivo
@@ -31,11 +31,7 @@ class CreateDatabase:
             temp_conn = sqlite3.connect(self.db_archivo)
             cursor = temp_conn.cursor()
             
-            # --- MODIFICACIÓN CLAVE: Verificar si la tabla 'cargo' existe Y tiene datos ---
-            # Si el código de creación de tablas falla a mitad, 'persona' puede existir,
-            # pero el catálogo podría estar vacío.
-            
-            # 1. Verificar existencia de la tabla
+            # 1. Verificar existencia de la tabla 'cargo'
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cargo'")
             tabla_catalogo_existe = cursor.fetchone()
             
@@ -221,14 +217,13 @@ CREATE TABLE IF NOT EXISTS denunciado(
     FOREIGN KEY (persona_id) REFERENCES persona(id)
 );
 
+-- CORRECCIÓN: Se alinea esta tabla con la definición de PostgreSQL (expediente_id, comentario, fecha)
 CREATE TABLE IF NOT EXISTS seguimiento(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    denuncia_id INTEGER NOT NULL UNIQUE,
-    consejero_id INTEGER NOT NULL,
-    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-    observaciones TEXT NOT NULL,
-    FOREIGN KEY (denuncia_id) REFERENCES denuncia(id) ON DELETE CASCADE,
-    FOREIGN KEY (consejero_id) REFERENCES personal(persona_id)
+    expediente_id INTEGER NOT NULL, -- Referencia a un Expediente
+    fecha DATE NOT NULL,
+    comentario TEXT,
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS cierre(
@@ -335,6 +330,10 @@ CREATE TABLE IF NOT EXISTS cargo(
     # Se define la función de crear la conexión a la base de datos
     def crearConexion(self):
         try:
+            # Reutilizar la conexión si existe
+            if self.conexion and not self.conexion._closed:
+                return self.conexion
+            
             self.conexion = sqlite3.connect(self.db_archivo)
             # Habilitar claves foráneas
             self.conexion.execute("PRAGMA foreign_keys = ON")

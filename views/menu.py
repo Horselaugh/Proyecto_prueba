@@ -1,10 +1,10 @@
-"""Módulo principal de la aplicación LOPNNA, maneja la ventana principal,
-la navegación por el menú lateral y la carga dinámica de vistas y controladores."""
 import sys
 import os
 import importlib
 from tkinter import messagebox
 import customtkinter as ctk
+from PIL import Image, ImageTk 
+
 
 # ----------------------------------------------------------------------
 # Configuración de Paths y Apariencia
@@ -99,9 +99,9 @@ MODULE_PATHS = {
     # Denuncias (NUEVO MÓDULO)
     "gestion_denuncias": {
         "view_module": "funcion_vista_denuncia",
-        "view_class": "DenunciaViewFrame",
+        "view_class": "FuncionVistaDenuncia",
         "controller_module": "controllers.denuncia_controller",
-        "controller_class": "DenunciaControlador"
+        "controller_class": "DenunciaController"
     },
 
     # Reportes
@@ -148,6 +148,34 @@ class MenuInicioFrame(BaseViewFrame):
         # Contenedor central
         container = ctk.CTkFrame(self, fg_color="transparent")
         container.place(relx=0.5, rely=0.5, anchor="center")
+        
+        # --- Carga y Muestra de la Imagen ---
+        try:
+            # 1. Definir la ruta de la imagen (asume que está en el mismo directorio)
+            image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DAxrdkeW0AEs7wT.jpg")
+            
+            # 2. Abrir la imagen con PIL
+            # Puedes ajustar el tamaño aquí (e.g., 600, 300) y usar Image.LANCZOS para calidad
+            pil_image = Image.open(image_path).resize((600, 300), Image.LANCZOS)
+            
+            # 3. Crear el objeto CTkImage
+            self.lopnna_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(600, 300))
+            
+            # 4. Mostrar la imagen en una etiqueta
+            ctk.CTkLabel(container, image=self.lopnna_image, text="").pack(pady=(20, 10))
+            
+        except FileNotFoundError:
+            # Manejo de error si la imagen no se encuentra
+            ctk.CTkLabel(container,
+                         text="[❌ Imagen no encontrada: DAxrdkeW0AEs7wT.jpg]",
+                         font=("Arial", 14),
+                         text_color="#e74c3c").pack(pady=10)
+        except Exception as e:
+            # Otro error, por ejemplo, si PIL no está instalado o el formato es incorrecto
+             ctk.CTkLabel(container,
+                         text=f"[❌ Error al cargar imagen: {str(e)}]",
+                         font=("Arial", 14),
+                         text_color="#e74c3c").pack(pady=10)
 
         ctk.CTkLabel(container,
                      text="Bienvenido al Sistema de Gestión LOPNNA",
