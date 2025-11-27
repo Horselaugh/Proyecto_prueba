@@ -1,19 +1,9 @@
-# views/funcion_vista_denuncia.py
-
 import customtkinter as ctk
 from tkinter import messagebox
 from typing import Dict, List, Optional
 import datetime
 
 from controllers.denuncia_controller import DenunciaController
-# Asumimos que también necesitarás controladores para buscar NNA, Personal y Persona general
-# from controllers.nna_controller import NNAControlador
-# from controllers.personal_controller import PersonalControlador
-# from controllers.persona_controller import PersonaControlador # Para buscar denunciantes/denunciados
-
-# ----------------------------------------------------------------------
-# VISTA: GESTIÓN DE DENUNCIAS
-# ----------------------------------------------------------------------
 
 class DenunciaViewFrame(ctk.CTkFrame):
     """
@@ -405,26 +395,6 @@ class DenunciaViewFrame(ctk.CTkFrame):
             self.display_message(f"⚠️ El NNA ID {nna_id} ya ha sido añadido. Elimínelo primero para modificarlo.", is_success=False)
             return
         
-    def _handle_add_nna_involucrado(self):
-        nna_id_str = self.nna_involucrado_id_var.get().strip()
-        rol = self.nna_involucrado_rol_var.get().strip()
-        detalle = self.nna_detalle_textbox.get("1.0", "end").strip()
-
-        if not nna_id_str or not rol:
-            self.display_message("❌ ID de NNA y Rol son obligatorios.", is_success=False)
-            return
-        
-        try:
-            nna_id = int(nna_id_str)
-        except ValueError:
-            self.display_message("❌ El ID del NNA debe ser un número entero.", is_success=False)
-            return
-
-        # Verificar si el NNA ya fue añadido
-        if any(n['nna_id'] == nna_id for n in self._nna_involucrados_temp):
-            self.display_message(f"⚠️ El NNA ID {nna_id} ya ha sido añadido. Elimínelo primero para modificarlo.", is_success=False)
-            return
-        
         # Añadir a la lista temporal
         self._nna_involucrados_temp.append({
             'nna_id': nna_id,
@@ -757,14 +727,14 @@ class ToolTip:
         self.tw = ctk.Toplevel(self.widget)
         self.tw.wm_overrideredirect(True)  # elimina la barra de título
         self.tw.wm_geometry("+%d+%d" % (x, y))
-        label = ctk.Label(self.tw, text=self.text, justify='left',
+        label = ctk.CTkLabel(self.tw, text=self.text, justify='left',
                          background="#ffffe0", relief='solid', borderwidth=1,
                          wraplength=self.wraplength)
         label.pack(ipadx=1)
-
+        # Se reemplaza ctk.Label con ctk.CTkLabel para consistencia en la librería
+        
     def hidetip(self):
         tw = self.tw
         self.tw = None
         if tw:
             tw.destroy()
-# Se omite aquí por brevedad, pero es una clase estándar de Tkinter.

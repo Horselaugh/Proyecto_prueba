@@ -1,265 +1,11 @@
-from customtkinter import ctk
+import customtkinter as ctk 
 from tkinter import messagebox
 from typing import List, Dict, Any, Optional
-
-# ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL) - COMPLETO Y REVISADO
-# ----------------------------------------------------------------------
-
-class MockConfiguracionModelo:
-    """Mock completo del Modelo de configuración para simular la persistencia de datos."""
-    
-    # Simulación de datos en memoria para el mock
-    _ROLES = [
-        {"id": 1, "nombre": "Admin", 
-         "descripcion": "Administrador con control total del sistema"},
-        {"id": 2, "nombre": "Supervisor", 
-         "descripcion": "Puede aprobar y auditar transacciones"},
-        {"id": 3, "nombre": "Usuario", 
-         "descripcion": "Acceso básico para registro de operaciones"}
-    ]
-    _USUARIOS = [
-        {"id": 101, "primer_nombre": "Juan", "apellido": "Perez", 
-         "documento": "12345678", "rol_id": 1, "rol_nombre": "Admin"},
-        {"id": 102, "primer_nombre": "Maria", "apellido": "Lopez", 
-         "documento": "87654321", "rol_id": 3, "rol_nombre": "Usuario"},
-    ]
-    
-    # ------------------
-    # ROLES
-    # ------------------
-    def get_all_roles(self) -> List[Dict[str, Any]]: 
-        """Retorna una lista simulada de roles."""
-        return self._ROLES
-
-    def handle_crear_rol(self, data: Dict[str, str]) -> bool: 
-        """Mock para crear un nuevo rol."""
-        new_id = max((r['id'] for r in self._ROLES), default=0) + 1
-        new_rol = {"id": new_id, "nombre": data['nombre'], 
-                   "descripcion": data['descripcion']}
-        self._ROLES.append(new_rol)
-        return True
-
-    def handle_guardar_rol(self, data: Dict[str, Any]) -> bool: 
-        """Mock para actualizar un rol existente."""
-        for i, rol in enumerate(self._ROLES):
-            if rol['id'] == data['id']:
-                self._ROLES[i]['nombre'] = data['nombre']
-                self._ROLES[i]['descripcion'] = data['descripcion']
-                return True
-        return False
-        
-    def handle_eliminar_rol(self, rol_id: int) -> bool: 
-        """Mock para eliminar un rol."""
-        # Se recrea la lista excluyendo el rol_id
-        self._ROLES[:] = [r for r in self._ROLES if r['id'] != rol_id]
-        
-        # También actualizamos los usuarios cuyo rol fue eliminado
-        if not self._ROLES:
-            default_rol_id = None
-        else:
-            default_rol_id = self._ROLES[0]['id']
-            default_rol_nombre = self._ROLES[0]['nombre']
-            
-        for user in self._USUARIOS:
-            if user['rol_id'] == rol_id:
-                user['rol_id'] = default_rol_id
-                user['rol_nombre'] = default_rol_nombre if default_rol_id else "N/A (Rol Eliminado)"
-                
-        return True
-
-    # ------------------
-    # USUARIOS
-    # ------------------
-    def get_all_usuarios(self) -> List[Dict[str, Any]]: 
-        """Retorna una lista simulada de usuarios."""
-        return self._USUARIOS
-        
-    def handle_crear_usuario(self, data: Dict[str, Any]) -> bool: 
-        """Mock para crear un nuevo usuario."""
-        new_id = max((u['id'] for u in self._USUARIOS), default=100) + 1
-        rol_info = self._get_rol_info(data['rol_id'])
-        new_user = {
-            "id": new_id, 
-            "primer_nombre": data['primer_nombre'], 
-            "apellido": data['apellido'], 
-            "documento": data['documento'], 
-            "rol_id": data['rol_id'],
-            "rol_nombre": rol_info.get('nombre', 'Desconocido')
-        }
-        self._USUARIOS.append(new_user)
-        return True
-        
-    def handle_guardar_usuario(self, data: Dict[str, Any]) -> bool: 
-        """Mock para actualizar un usuario existente."""
-        for i, user in enumerate(self._USUARIOS):
-            if user['id'] == data['id']:
-                rol_info = self._get_rol_info(data['rol_id'])
-                self._USUARIOS[i].update({
-                    "primer_nombre": data['primer_nombre'],
-                    "apellido": data['apellido'],
-                    "documento": data['documento'],
-                    "rol_id": data['rol_id'],
-                    "rol_nombre": rol_info.get('nombre', 'Desconocido')
-                })
-                return True
-        return False
-
-    def handle_eliminar_usuario(self, persona_id: int) -> bool: 
-        """Mock para eliminar un usuario."""
-        self._USUARIOS[:] = [u for u in self._USUARIOS if u['id'] != persona_id]
-        return True
-        
-    def _get_rol_info(self, rol_id: int) -> Dict[str, Any]:
-        """Ayudante para obtener nombre de rol en el mock."""
-        for rol in self._ROLES:
-            if rol['id'] == rol_id:
-                return rol
-        # Retorna un diccionario con valores por defecto si el rol_id no se encuentra
-        return {"id": None, "nombre": "Desconocido", 
-                "descripcion": "Rol no encontrado"}
-
-
-# Importamos el controlador (o su mock)
-try:
-    # Esto asume que tienes un controlador real, si no, usa el mock
-    from controllers.configuracion_controller import ConfiguracionControlador
-except ImportError:
-    # MOCK del Controlador si la importación real falla
-    class MockConfiguracionControlador:
-        """Controlador simple para probar la vista sin backend."""
-        def __init__(self):
-            # Usar el mock de modelo completo para evitar errores de Attribute
-            self.modelo = MockConfiguracionModelo()
-            self.vista: Optional['ConfiguracionViewFrame'] = None
-
-        def set_view(self, view_instance):
-            """Establece la instancia de la vista."""
-            self.vista = view_instance
-
-        def get_rol_id_from_str(self, rol_str: str) -> Optional[int]:
-            """Extrae el ID numérico del rol desde la cadena (e.g., '1 - Admin')"""
-            try:
-                if rol_str and ' - ' in rol_str:
-                    return int(rol_str.split(' - ')[0])
-            except ValueError:
-                return None
-            return None
-
-        def get_all_roles(self):
-            """Retorna todos los roles del modelo."""
-            return self.modelo.get_all_roles()
-
-        def load_initial_data(self):
-            """Carga los datos iniciales (roles y usuarios) en la vista."""
-            if self.vista:
-                roles = self.get_all_roles()
-                usuarios = self.modelo.get_all_usuarios()
-                self.vista.cargar_roles(roles)
-                self.vista.cargar_usuarios(usuarios)
-                self.vista.display_message("✅ Datos de Configuración cargados (Mock).", 
-                                           is_success=True)
-
-        def _validar_rol_data(self, data: Dict[str, str]) -> bool:
-            """Valida los datos de entrada para un rol."""
-            if not data.get('nombre') or not data.get('descripcion'):
-                self.vista.display_message("❌ Error: Nombre y descripción del rol son obligatorios.", 
-                                           is_success=False)
-                return False
-            return True
-
-        def handle_crear_rol(self, data: Dict[str, str]):
-            """Maneja la lógica para crear un nuevo rol."""
-            if not self._validar_rol_data(data): 
-                return
-            if self.modelo.handle_crear_rol(data):
-                self.vista.display_message(f"✅ Rol {data['nombre']} creado.", 
-                                           is_success=True)
-                self.vista.limpiar_campos_rol(clear_selection=True)
-                self.load_initial_data()
-            else:
-                self.vista.display_message("❌ Error al crear rol.", is_success=False)
-
-        def handle_guardar_rol(self, data: Dict[str, Any]):
-            """Maneja la lógica para actualizar un rol existente."""
-            if not self._validar_rol_data(data): 
-                return
-            if self.modelo.handle_guardar_rol(data):
-                self.vista.display_message(f"✅ Rol {data['nombre']} guardado.", 
-                                           is_success=True)
-                self.vista.limpiar_campos_rol(clear_selection=True)
-                self.load_initial_data()
-            else:
-                self.vista.display_message("❌ Error al guardar rol.", is_success=False)
-
-        def handle_eliminar_rol(self, rol_id: int, nombre_rol: str):
-            """Maneja la lógica para eliminar un rol."""
-            if self.modelo.handle_eliminar_rol(rol_id):
-                self.vista.display_message(f"🗑️ Rol {nombre_rol} eliminado.", 
-                                           is_success=True)
-                self.vista.limpiar_campos_rol(clear_selection=True)
-                self.load_initial_data()
-            else:
-                self.vista.display_message("❌ Error al eliminar rol.", is_success=False)
-        
-        # --- USUARIOS ---
-
-        def _validar_usuario_data(self, data: Dict[str, Any]) -> bool:
-            """Valida los datos de entrada para un usuario."""
-            if not data.get('primer_nombre') or not data.get('documento'):
-                self.vista.display_message("❌ Error: Nombre y documento son obligatorios.", 
-                                           is_success=False)
-                return False
-            if not data.get('rol_id'):
-                self.vista.display_message("❌ Error: Debe seleccionar un Rol para el usuario.", 
-                                           is_success=False)
-                return False
-            return True
-
-        def handle_crear_usuario(self, data: Dict[str, Any]):
-            """Maneja la lógica para crear un nuevo usuario."""
-            if not self._validar_usuario_data(data): 
-                return
-            if self.modelo.handle_crear_usuario(data):
-                self.vista.display_message(f"✅ Usuario {data['primer_nombre']} creado.", 
-                                           is_success=True)
-                self.vista.limpiar_campos_usuario(clear_selection=True)
-                self.load_initial_data()
-            else:
-                self.vista.display_message("❌ Error al crear usuario.", is_success=False)
-
-        def handle_guardar_usuario(self, data: Dict[str, Any]):
-            """Maneja la lógica para actualizar un usuario existente."""
-            if not self._validar_usuario_data(data): 
-                return
-            if self.modelo.handle_guardar_usuario(data):
-                self.vista.display_message(f"✅ Usuario {data['primer_nombre']} guardado.", 
-                                           is_success=True)
-                self.vista.limpiar_campos_usuario(clear_selection=True)
-                self.load_initial_data()
-            else:
-                self.vista.display_message("❌ Error al guardar usuario.", is_success=False)
-
-        def handle_eliminar_usuario(self, persona_id: int, nombre_usuario: str):
-            """Maneja la lógica para eliminar un usuario."""
-            if self.modelo.handle_eliminar_usuario(persona_id):
-                self.vista.display_message(f"🗑️ Usuario {nombre_usuario} eliminado.", 
-                                           is_success=True)
-                self.vista.limpiar_campos_usuario(clear_selection=True)
-                self.load_initial_data()
-            else:
-                self.vista.display_message("❌ Error al eliminar usuario.", is_success=False)
-
-    ConfiguracionControlador = MockConfiguracionControlador
-
+from controllers.configuracion_controller import ConfiguracionControlador
 
 class ConfiguracionViewFrame(ctk.CTkFrame):
-    """
-    Vista para el módulo de configuración. 
-    Hereda de CTkFrame para ser cargado en el panel de contenido.
-    """
     
-    def __init__(self, master, controller: MockConfiguracionControlador):
+    def __init__(self, master, controller: ConfiguracionControlador):
         super().__init__(master, corner_radius=0, fg_color="transparent") 
         
         self.controller = controller 
@@ -380,7 +126,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.btn_rol_crear_guardar.grid(row=0, column=0, padx=(0, 5), sticky="ew")
         
         self.btn_rol_cancelar = ctk.CTkButton(btn_frame, text="❌ Cancelar/Nuevo", 
-                                                 command=lambda: self.limpiar_campos_rol(clear_selection=True), 
+                                                 command=lambda: self._limpiar_campos_rol(clear_selection=True), 
                                                  fg_color="#e74c3c", 
                                                  hover_color="#c0392b", 
                                                  height=35)
@@ -395,8 +141,11 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.btn_rol_eliminar.pack(padx=20, pady=(10, 20), fill="x")
 
 
-    def cargar_roles(self, roles: List[Dict[str, Any]]):
-        """Carga los roles en el marco de lista y prepara las opciones de ComboBox."""
+    def _cargar_roles(self, roles: List[Dict[str, Any]]):
+        """
+        [MÉTODO REQUERIDO POR EL CONTROLADOR] 
+        Carga los roles en el marco de lista y prepara las opciones de ComboBox.
+        """
         
         # Limpiar lista de roles
         for widget in self.rol_list_frame.winfo_children():
@@ -411,6 +160,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         current_user_rol_selection = self.usuario_rol_var.get()
         
         for rol in roles:
+            # Asegurar que se usan los nombres correctos de las claves del diccionario
             rol_str = f"{rol['id']} - {rol['nombre']}"
             rol_options.append(rol_str)
             self.rol_map[rol['id']] = rol_str
@@ -437,7 +187,11 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
             if current_user_rol_selection in rol_options:
                 self.usuario_rol_var.set(current_user_rol_selection)
             elif rol_options: 
-                self.usuario_rol_var.set(rol_options[0])
+                # Solo si hay roles, establece el primero o el default
+                if len(rol_options) > 0:
+                    self.usuario_rol_var.set(rol_options[0])
+                else:
+                    self.usuario_rol_var.set("Seleccionar Rol")
 
 
     def _cargar_rol_para_edicion(self, rol_data: Dict[str, Any]):
@@ -451,8 +205,11 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.btn_rol_eliminar.configure(state="normal")
         self.display_message(f"Cargado Rol ID {rol_data['id']} para edición.", True)
 
-    def limpiar_campos_rol(self, clear_selection: bool = False):
-        """Limpia los campos del formulario de Roles."""
+    def _limpiar_campos_rol(self, clear_selection: bool = False):
+        """
+        [MÉTODO REQUERIDO POR EL CONTROLADOR]
+        Limpia los campos del formulario de Roles.
+        """
         if clear_selection:
             self.rol_id_var = None
         self.rol_nombre_var.set("")
@@ -567,7 +324,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         
         self.btn_usuario_cancelar = ctk.CTkButton(btn_frame_user, 
                                                      text="❌ Cancelar/Nuevo", 
-                                                     command=lambda: self.limpiar_campos_usuario(clear_selection=True), 
+                                                     command=lambda: self._limpiar_campos_usuario(clear_selection=True), 
                                                      fg_color="#e74c3c", 
                                                      hover_color="#c0392b", 
                                                      height=35)
@@ -582,8 +339,11 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.btn_usuario_eliminar.pack(padx=20, pady=(10, 20), fill="x")
 
 
-    def cargar_usuarios(self, usuarios: List[Dict[str, Any]]):
-        """Carga los usuarios en el marco de lista."""
+    def _cargar_usuarios(self, usuarios: List[Dict[str, Any]]):
+        """
+        [MÉTODO REQUERIDO POR EL CONTROLADOR]
+        Carga los usuarios en el marco de lista.
+        """
         
         # Limpiar lista de usuarios
         for widget in self.usuario_list_frame.winfo_children():
@@ -595,17 +355,29 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
                                      corner_radius=8)
             user_frame.pack(fill="x", padx=10, pady=(6, 3))
             
+            # Nota: El controlador trae 'nombre_usuario' (que es primer_nombre) y 'primer_apellido'
+            # del modelo real.
+            nombre_completo = f"{usuario['nombre_usuario']} {usuario['primer_apellido']} ({usuario['rol_nombre']})"
+            
             ctk.CTkLabel(user_frame, 
-                         text=f"{usuario['primer_nombre']} {usuario['apellido']} ({usuario['rol_nombre']})", 
+                         text=nombre_completo, 
                          font=ctk.CTkFont(size=14, weight="bold"), 
                          anchor="w").pack(padx=10, pady=(5, 0), fill="x")
             
             ctk.CTkLabel(user_frame, 
-                         text=f"Doc: {usuario['documento']} | ID: {usuario['id']}", 
+                         text=f"Doc: {usuario['documento_identidad']} | ID: {usuario['persona_id']}", 
                          anchor="w", text_color="#bdc3c7").pack(padx=10, pady=(0, 5), fill="x")
 
             btn_edit = ctk.CTkButton(user_frame, text="Editar", width=60, 
-                                     command=lambda u=usuario: self._cargar_usuario_para_edicion(u))
+                                     # Se ajustan las claves para coincidir con lo que trae el modelo
+                                     command=lambda u=usuario: self._cargar_usuario_para_edicion({
+                                         'id': u['persona_id'], # El ID de la persona
+                                         'documento': u['documento_identidad'],
+                                         'primer_nombre': u['nombre_usuario'], # Es el primer_nombre
+                                         'apellido': u['primer_apellido'],
+                                         'rol_id': u['rol_id'],
+                                         'rol_nombre': u['rol_nombre']
+                                     }))
             btn_edit.pack(side="right", padx=10, pady=5)
 
 
@@ -624,6 +396,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         rol_id = usuario_data.get('rol_id')
         rol_nombre = usuario_data.get('rol_nombre', 'N/A')
         
+        # La opción en el ComboBox está en el formato 'ID - Nombre'
         opcion_a_seleccionar = f"{rol_id} - {rol_nombre}"
         
         combo_values = self.usuario_rol_combo.cget("values")
@@ -641,8 +414,11 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         self.display_message(f"Cargado Usuario ID {usuario_data['id']} para edición.", 
                              True)
 
-    def limpiar_campos_usuario(self, clear_selection: bool = False):
-        """Limpia los campos del formulario de Usuarios."""
+    def _limpiar_campos_usuario(self, clear_selection: bool = False):
+        """
+        [MÉTODO REQUERIDO POR EL CONTROLADOR]
+        Limpia los campos del formulario de Usuarios.
+        """
         if clear_selection:
             self.usuario_id_var = None
         self.usuario_doc_var.set("")
@@ -669,7 +445,8 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
     def _handle_usuario_save(self):
         """Maneja la creación o edición de un usuario."""
         rol_str = self.usuario_rol_var.get()
-        rol_id = self.controller.get_rol_id_from_str(rol_str)
+        # Obtener el rol_id de la cadena, usando el método del controlador real
+        rol_id = self.controller.get_rol_id_from_str(rol_str) 
         
         data = {
             'id': self.usuario_id_var, # Será None si es creación
@@ -677,6 +454,7 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
             'primer_nombre': self.usuario_nombre_var.get().strip(),
             'apellido': self.usuario_apellido_var.get().strip(),
             'rol_id': rol_id,
+            'rol_str': rol_str # Necesario para _prepare_usuario_data en el controlador
         }
 
         if data['id'] is None:
@@ -705,18 +483,3 @@ class ConfiguracionViewFrame(ctk.CTkFrame):
         """Muestra un mensaje de estado en la interfaz."""
         color = "#2ecc71" if is_success else "#e74c3c"
         self.message_label.configure(text=message, text_color=color)
-
-
-# --- Ejemplo de Ejecución (Opcional, para testear) ---
-if __name__ == "__main__":
-    app = ctk.CTk()
-    app.title("Sistema de Gestión - Configuración (Mock)")
-    app.geometry("1000x700")
-
-    controller_instance = ConfiguracionControlador()
-    view = ConfiguracionViewFrame(app, controller_instance)
-    view.pack(fill="both", expand=True)
-    
-    view.show() # Cargar datos iniciales
-    
-    app.mainloop()

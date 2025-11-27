@@ -9,10 +9,6 @@ from controllers.nna_controller import NNAControlador
 # ----------------------------------------------------------------------
 
 class NNAViewFrame(ctk.CTkFrame):
-    """
-    Vista para el módulo de gestión de NNA (Niños, Niñas y Adolescentes). 
-    Hereda de CTkFrame.
-    """
     
     def __init__(self, master, controller: NNAControlador):
         super().__init__(master, corner_radius=0, fg_color="transparent") 

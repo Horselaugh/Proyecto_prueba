@@ -1,9 +1,5 @@
 import customtkinter as ctk
 from tkinter import messagebox
-import sys
-import os
-from typing import Dict
-
 
 # ----------------------------------------------------------------------
 # MOCK DE MODELO (TEMPORAL)

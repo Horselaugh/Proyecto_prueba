@@ -1,17 +1,27 @@
-# models/denuncia_model.py
-
-from database_connector import database
+import sys
+import os
+from database_connector import Database # Importar la clase Database del Singleton
 from sqlite3 import Error, IntegrityError
 from typing import Dict, List, Optional
 
+# Añadir el path para que las importaciones relativas funcionen
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+
+# 🚨 CAMBIO CLAVE: Importar directamente la clase Database desde database_connector
+# Se asume que database_connector.py está en la misma carpeta o accesible por path.
+try:
+    from database_connector import Database  # Usamos la clase Database (Singleton)
+except ImportError:
+    # Esto manejaría el caso si la estructura de carpetas es diferente (models/database_connector)
+    # y la importación del nivel superior falla.
+    print("Advertencia: No se pudo importar Database directamente. Intentando models.database_connector...")
+    from models.database_connector import Database
+
 class DenunciaModel:
-    """
-    Modelo para gestionar el ciclo de vida completo de una Denuncia.
-    Incluye: Denuncia principal, NNA involucrados, Denunciante(s) y Denunciado(s).
-    """
 
     def __init__(self):
-        self.db = database
+        # Se obtiene la única instancia del Singleton Database
+        self.db = Database()
 
     def crear_denuncia_completa(self, datos_denuncia: Dict, nna_involucrados: List[Dict], denunciantes: List[Dict], denunciados: List[int]) -> tuple[Optional[int], str]:
         """
@@ -75,7 +85,7 @@ class DenunciaModel:
     # Métodos de Seguimiento y Cierre
     # ----------------------------------------------------------------------
 
-    def agregar_seguimiento(self, denuncia_id: int, consejero_id: int, observaciones: str) -> bool:
+    def agregar_seguimiento(self, denuncia_id: int, consejero_id: int, observaciones: str) -> tuple[bool, str]:
         """
         Agrega un registro de seguimiento a una denuncia existente.
         """
@@ -94,7 +104,7 @@ class DenunciaModel:
         finally:
             self.db.cerrarConexion()
             
-    def cerrar_denuncia(self, denuncia_id: int, consejero_id: int, acta_cierre: str) -> bool:
+    def cerrar_denuncia(self, denuncia_id: int, consejero_id: int, acta_cierre: str) -> tuple[bool, str]:
         """
         Registra el cierre de la denuncia y actualiza su estado.
         """
@@ -128,6 +138,25 @@ class DenunciaModel:
     # Métodos de Consulta
     # ----------------------------------------------------------------------
 
+    def _ejecutar_consulta(self, sql: str, params: tuple) -> Optional[List[Dict]]:
+        """Método auxiliar para ejecutar consultas SELECT y mapear a lista de diccionarios."""
+        conn = self.db.crearConexion()
+        if conn is None:
+            return None
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            if rows:
+                columnas = [desc[0] for desc in cursor.description]
+                return [dict(zip(columnas, row)) for row in rows]
+            return []
+        except Error as e:
+            print(f"[ERROR_CONSULTA] Error al ejecutar consulta: {e}")
+            return None
+        finally:
+            self.db.cerrarConexion()
+
     def obtener_denuncia_por_id(self, denuncia_id: int) -> Optional[Dict]:
         """
         Obtiene los datos básicos de una denuncia y si está abierta o cerrada.
@@ -142,22 +171,55 @@ class DenunciaModel:
             JOIN persona p_con ON per.persona_id = p_con.id
             WHERE d.id = ?;
         """
-        conn = self.db.crearConexion()
-        if conn is None:
-            return None
-        try:
-            cursor = conn.cursor()
-            cursor.execute(sql, (denuncia_id,))
-            
-            row = cursor.fetchone()
-            if row:
-                columnas = [desc[0] for desc in cursor.description]
-                return dict(zip(columnas, row))
-            return None
-        except Error as e:
-            print(f"[ERROR_CONSULTA] Error al obtener denuncia: {e}")
-            return None
-        finally:
-            self.db.cerrarConexion()
+        # Se reutiliza la lógica existente, pero adaptando para obtener un solo resultado
+        resultados = self._ejecutar_consulta(sql, (denuncia_id,))
+        return resultados[0] if resultados and resultados is not None else None
 
-    # Puedes agregar más métodos de consulta aquí (obtener involucrados, denunciantes, etc.)
+    def obtener_nna_involucrados(self, denuncia_id: int) -> Optional[List[Dict]]:
+        """
+        Obtiene la lista de NNA involucrados en una denuncia, incluyendo sus datos personales.
+        """
+        sql = """
+            SELECT 
+                ni.nna_id, ni.rol, ni.detalle_participacion, 
+                p.documento_identidad, p.primer_nombre, p.primer_apellido, 
+                n.fecha_nacimiento
+            FROM nna_involucrado ni
+            JOIN persona p ON ni.nna_id = p.id
+            JOIN nna n ON ni.nna_id = n.persona_id
+            WHERE ni.denuncia_id = ?;
+        """
+        return self._ejecutar_consulta(sql, (denuncia_id,))
+
+    def obtener_denunciantes(self, denuncia_id: int) -> Optional[List[Dict]]:
+        """
+        Obtiene la lista de denunciantes de una denuncia.
+        Si persona_id es NULL, el denunciante es anónimo.
+        """
+        sql = """
+            SELECT 
+                d.persona_id, d.declaracion, d.lesiones, 
+                CASE 
+                    WHEN p.id IS NOT NULL THEN p.primer_nombre || ' ' || p.primer_apellido
+                    ELSE 'Anónimo' 
+                END AS nombre_completo,
+                p.documento_identidad
+            FROM denunciante d
+            LEFT JOIN persona p ON d.persona_id = p.id
+            WHERE d.denuncia_id = ?;
+        """
+        return self._ejecutar_consulta(sql, (denuncia_id,))
+
+    def obtener_denunciados(self, denuncia_id: int) -> Optional[List[Dict]]:
+        """
+        Obtiene la lista de denunciados de una denuncia, incluyendo sus datos personales y medidas.
+        """
+        sql = """
+            SELECT 
+                d.persona_id, d.medidas, 
+                p.documento_identidad, p.primer_nombre, p.primer_apellido
+            FROM denunciado d
+            JOIN persona p ON d.persona_id = p.id
+            WHERE d.denuncia_id = ?;
+        """
+        return self._ejecutar_consulta(sql, (denuncia_id,))

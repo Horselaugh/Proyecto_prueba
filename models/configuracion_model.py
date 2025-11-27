@@ -1,14 +1,23 @@
 import sqlite3
-from sqlite3 import Row
-from typing import List, Dict, Optional
-import random
 import sys
 import os
+import random
+from sqlite3 import Row
+from typing import List, Dict, Optional
 
-# Agregar el path para importar configuracion_database
+# Añadir el path para que las importaciones relativas funcionen
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-from configuracion_database import DatabaseConfig
+# 🚨 CAMBIO CLAVE: Importar directamente la clase Database desde database_connector
+# Se asume que database_connector.py está en la misma carpeta o accesible por path.
+try:
+    from database_connector import Database  # Usamos la clase Database (Singleton)
+except ImportError:
+    # Esto manejaría el caso si la estructura de carpetas es diferente (models/database_connector)
+    # y la importación del nivel superior falla.
+    print("Advertencia: No se pudo importar Database directamente. Intentando models.database_connector...")
+    from models.database_connector import Database
+
 
 class ConfiguracionModel:
     """
@@ -16,12 +25,24 @@ class ConfiguracionModel:
     """
     
     def __init__(self):
-        self.db = DatabaseConfig()
+        # 🚨 CAMBIO CLAVE: Inicializar self.db con la instancia Singleton de Database
+        # La clase Database del archivo database_connector.py actúa como un Singleton.
+        self.db = Database()
         self._inicializar_base_datos()
     
     def _inicializar_base_datos(self) -> bool:
         """Inicializa la base de datos con las tablas necesarias"""
-        conn = self.db.obtener_conexion()
+        # 🚨 CAMBIO CLAVE: Usar obtener_conexion/cerrar_conexion de la clase Database
+        # NOTA: La clase Database en database_connector.py no tiene `obtener_conexion` ni 
+        # `cerrar_conexion` en el código proporcionado. Solo tiene `crearConexion` y 
+        # `cerrarConexion`. Asumo que se desea usar el método `crearConexion` 
+        # y que se ha modificado la clase `Database` para tener `obtener_conexion` o 
+        # que `crearConexion` se usará en su lugar.
+        
+        # Basado en el uso previo de database_connector.py, asumiremos que los métodos son:
+        # obtener_conexion -> crearConexion
+        # cerrar_conexion -> cerrarConexion
+        conn = self.db.crearConexion() # Usando crearConexion en lugar de obtener_conexion
         if conn is None:
             return False
         
@@ -60,8 +81,10 @@ class ConfiguracionModel:
                     rol_id INTEGER NOT NULL,
                     fecha_asignacion DATE DEFAULT CURRENT_DATE,
                     PRIMARY KEY (persona_id, rol_id),
-                    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE,
-                    FOREIGN KEY (rol_id) REFERENCES rol(id) ON DELETE CASCADE
+                    FOREIGN KEY (persona_id) 
+                        REFERENCES persona(id) ON DELETE CASCADE,
+                    FOREIGN KEY (rol_id) 
+                        REFERENCES rol(id) ON DELETE CASCADE
                 );
             """)
             
@@ -75,7 +98,10 @@ class ConfiguracionModel:
                 );
             """)
             
-            cursor.execute("INSERT OR IGNORE INTO cargo (id, nombre) VALUES (1, 'AdministradorTemporal')")
+            # Insertar cargo por defecto
+            cursor.execute(
+                "INSERT OR IGNORE INTO cargo (id, nombre) VALUES (1, 'AdministradorTemporal')"
+            )
 
             # Tabla personal
             cursor.execute("""
@@ -89,15 +115,19 @@ class ConfiguracionModel:
                     nombre_usuario TEXT UNIQUE NOT NULL,
                     contraseña TEXT NOT NULL,
                     PRIMARY KEY (persona_id, cargo_id),
-                    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE,
-                    FOREIGN KEY (cargo_id) REFERENCES cargo(id) ON DELETE CASCADE
+                    FOREIGN KEY (persona_id) 
+                        REFERENCES persona(id) ON DELETE CASCADE,
+                    FOREIGN KEY (cargo_id) 
+                        REFERENCES cargo(id) ON DELETE CASCADE
                 );
             """)
             
-            # Insertar rol por defecto - CORREGIDO
+            # Insertar rol por defecto
             try:
-                cursor.execute("INSERT OR IGNORE INTO rol (nombre, descripcion) VALUES (?, ?)", 
-                              ('Administrador', 'Rol administrativo del sistema'))
+                cursor.execute(
+                    "INSERT OR IGNORE INTO rol (nombre, descripcion) VALUES (?, ?)", 
+                    ('Administrador', 'Rol administrativo del sistema')
+                )
             except sqlite3.IntegrityError:
                 pass  # Ya existe, no hacer nada
             
@@ -108,7 +138,7 @@ class ConfiguracionModel:
             print(f"Error al inicializar la base de datos: {e}")
             return False
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     # --- Operaciones de Roles ---
     
@@ -117,7 +147,7 @@ class ConfiguracionModel:
         query = "SELECT id, nombre, descripcion FROM rol ORDER BY nombre"
         
         try:
-            conn = self.db.obtener_conexion()
+            conn = self.db.crearConexion() # Usando crearConexion
             if conn is None:
                 return []
                 
@@ -130,14 +160,14 @@ class ConfiguracionModel:
             print(f"Error al obtener roles: {e}")
             return []
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     def insertar_rol(self, nombre: str, descripcion: str = "") -> Optional[int]:
         """Inserta un nuevo rol y retorna su ID"""
         query = "INSERT INTO rol (nombre, descripcion) VALUES (?, ?)"
         
         try:
-            conn = self.db.obtener_conexion()
+            conn = self.db.crearConexion() # Usando crearConexion
             if conn is None:
                 return None
                 
@@ -153,14 +183,15 @@ class ConfiguracionModel:
             print(f"Error al insertar rol {nombre}: {e}")
             return None
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
-    def modificar_rol(self, rol_id: int, nuevo_nombre: str, nueva_descripcion: str = "") -> bool:
+    def modificar_rol(self, rol_id: int, nuevo_nombre: str, 
+                      nueva_descripcion: str = "") -> bool:
         """Modifica un rol existente"""
         query = "UPDATE rol SET nombre = ?, descripcion = ? WHERE id = ?"
         
         try:
-            conn = self.db.obtener_conexion()
+            conn = self.db.crearConexion() # Usando crearConexion
             if conn is None:
                 return False
                 
@@ -176,14 +207,14 @@ class ConfiguracionModel:
             print(f"Error al modificar rol ID {rol_id}: {e}")
             return False
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     def eliminar_rol(self, rol_id: int) -> bool:
         """Elimina un rol de la base de datos"""
         query = "DELETE FROM rol WHERE id = ?"
         
         try:
-            conn = self.db.obtener_conexion()
+            conn = self.db.crearConexion() # Usando crearConexion
             if conn is None:
                 return False
                 
@@ -196,7 +227,7 @@ class ConfiguracionModel:
             print(f"Error al eliminar rol ID {rol_id}: {e}")
             return False
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     # --- Operaciones de Usuarios ---
     
@@ -221,7 +252,7 @@ class ConfiguracionModel:
         """
         
         try:
-            conn = self.db.obtener_conexion()
+            conn = self.db.crearConexion() # Usando crearConexion
             if conn is None:
                 return []
                 
@@ -234,11 +265,11 @@ class ConfiguracionModel:
             print(f"Error al obtener usuarios: {e}")
             return []
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     def insertar_usuario(self, datos_usuario: Dict) -> Optional[int]:
         """Inserta un nuevo usuario y retorna el ID de persona"""
-        conn = self.db.obtener_conexion()
+        conn = self.db.crearConexion() # Usando crearConexion
         if conn is None:
             return None
         
@@ -247,13 +278,17 @@ class ConfiguracionModel:
             
             # Generar datos únicos
             telefono_unico = f'555-{random.randint(1000, 9999)}'
-            resolucion_num = f"R-{datos_usuario['documento_identidad']}-{random.randint(10, 99)}"
+            resolucion_num = (
+                f"R-{datos_usuario['documento_identidad']}"
+                f"-{random.randint(10, 99)}"
+            )
             
             # 1. Insertar en tabla persona
             cursor.execute("""
                 INSERT INTO persona (
-                    primer_nombre, segundo_nombre, primer_apellido, segundo_apellido,
-                    documento_identidad, genero, direccion, telefono
+                    primer_nombre, segundo_nombre, primer_apellido, 
+                    segundo_apellido, documento_identidad, genero, 
+                    direccion, telefono
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 datos_usuario['primer_nombre'],
@@ -295,20 +330,21 @@ class ConfiguracionModel:
         except sqlite3.IntegrityError as e:
             conn.rollback()
             if "UNIQUE constraint failed: persona.documento_identidad" in str(e):
-                raise ValueError("El Documento de Identidad ya existe")
-            elif "UNIQUE constraint failed: personal.nombre_usuario" in str(e):
-                raise ValueError(f"El nombre de usuario '{datos_usuario['primer_nombre']}' ya existe")
-            else:
-                raise ValueError(f"Error de unicidad: {e}")
+                raise ValueError("El Documento de Identidad ya existe") from e
+            if "UNIQUE constraint failed: personal.nombre_usuario" in str(e):
+                raise ValueError(
+                    f"El nombre de usuario '{datos_usuario['primer_nombre']}' ya existe"
+                ) from e
+            raise ValueError(f"Error de unicidad: {e}") from e
         except sqlite3.Error as e:
             conn.rollback()
-            raise Exception(f"Error al insertar usuario: {e}")
+            raise Exception(f"Error al insertar usuario: {e}") from e
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     def modificar_usuario(self, datos_usuario: Dict) -> bool:
         """Modifica un usuario existente"""
-        conn = self.db.obtener_conexion()
+        conn = self.db.crearConexion() # Usando crearConexion
         if conn is None:
             return False
         
@@ -336,16 +372,22 @@ class ConfiguracionModel:
             ))
             
             # 2. Actualizar nombre de usuario si cambió
-            if datos_usuario.get('nombre_usuario_anterior') != datos_usuario['primer_nombre']:
+            if (datos_usuario.get('nombre_usuario_anterior') != 
+                    datos_usuario['primer_nombre']):
                 cursor.execute("""
                     UPDATE personal SET nombre_usuario = ? WHERE persona_id = ?
                 """, (datos_usuario['primer_nombre'], datos_usuario['persona_id']))
             
             # 3. Actualizar rol
             if datos_usuario.get('rol_id'):
-                cursor.execute("DELETE FROM persona_rol WHERE persona_id = ?", (datos_usuario['persona_id'],))
-                cursor.execute("INSERT INTO persona_rol (persona_id, rol_id) VALUES (?, ?)", 
-                              (datos_usuario['persona_id'], datos_usuario['rol_id']))
+                cursor.execute(
+                    "DELETE FROM persona_rol WHERE persona_id = ?", 
+                    (datos_usuario['persona_id'],)
+                )
+                cursor.execute(
+                    "INSERT INTO persona_rol (persona_id, rol_id) VALUES (?, ?)", 
+                    (datos_usuario['persona_id'], datos_usuario['rol_id'])
+                )
             
             conn.commit()
             return True
@@ -353,23 +395,22 @@ class ConfiguracionModel:
         except sqlite3.IntegrityError as e:
             conn.rollback()
             if "UNIQUE constraint failed: persona.documento_identidad" in str(e):
-                raise ValueError("El Documento de Identidad ya existe")
-            elif "UNIQUE constraint failed: personal.nombre_usuario" in str(e):
-                raise ValueError("El nuevo nombre de usuario ya existe")
-            else:
-                raise ValueError(f"Error de unicidad: {e}")
+                raise ValueError("El Documento de Identidad ya existe") from e
+            if "UNIQUE constraint failed: personal.nombre_usuario" in str(e):
+                raise ValueError("El nuevo nombre de usuario ya existe") from e
+            raise ValueError(f"Error de unicidad: {e}") from e
         except sqlite3.Error as e:
             conn.rollback()
-            raise Exception(f"Error al modificar usuario: {e}")
+            raise Exception(f"Error al modificar usuario: {e}") from e
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
     
     def eliminar_usuario(self, persona_id: int) -> bool:
         """Elimina un usuario de la base de datos"""
         query = "DELETE FROM persona WHERE id = ?"
         
         try:
-            conn = self.db.obtener_conexion()
+            conn = self.db.crearConexion() # Usando crearConexion
             if conn is None:
                 return False
                 
@@ -382,4 +423,4 @@ class ConfiguracionModel:
             print(f"Error al eliminar usuario ID {persona_id}: {e}")
             return False
         finally:
-            self.db.cerrar_conexion(conn)
+            self.db.cerrarConexion(conn) # Usando cerrarConexion
