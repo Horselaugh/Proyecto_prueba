@@ -4,12 +4,21 @@ import os
 import sqlite3
 from datetime import datetime
 
-# Agregar el directorio actual al path para importar database_connector
+# Asumiendo que 'database_connector' es accesible o se debe importar
 current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
+# Asumiendo que database_connector.py está en el directorio superior (ej. al nivel de 'models')
+sys.path.append(os.path.join(current_dir, '..')) 
+try:
+    from database_connector import Database
+except ImportError:
+    # Esto es un placeholder si no existe Database, para que el código compile
+    class Database:
+        def crearConexion(self): 
+             # Simulación de error de conexión si no existe
+             print("ADVERTENCIA: No se pudo importar Database. Las operaciones de BD fallarán.")
+             return None 
+        def cerrarConexion(self, conn): pass
 
-from database_connector import Database
 
 class MatriculaModel:
     def __init__(self):
@@ -19,6 +28,74 @@ class MatriculaModel:
         """Valida que el grado sea válido"""
         grados_validos = ['1ro', '2do', '3ro', '4to', '5to', '6to', '1ro Sec', '2do Sec', '3ro Sec', '4to Sec', '5to Sec']
         return grado in grados_validos
+
+    def obtener_nna(self):
+        """
+        Obtiene la lista de todos los NNA (Niños, Niñas y Adolescentes).
+        """
+        conn = None
+        try:
+            conn = self.db.crearConexion()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido 
+                FROM persona 
+                WHERE tipo_persona = 'NNA' OR rol = 'NNA' 
+                ORDER BY primer_apellido
+            ''')
+            
+            rows = cursor.fetchall()
+            
+            # Formatear el resultado para la vista (id y nombre_completo)
+            result = []
+            for row in rows:
+                id_nna, nombre1, nombre2, apellido1, apellido2 = row
+                nombre_completo = f"{nombre1} {nombre2 if nombre2 else ''} {apellido1} {apellido2 if apellido2 else ''}".strip().replace("  ", " ")
+                result.append({"id": id_nna, "nombre_completo": nombre_completo})
+                
+            return result
+        except Exception as e:
+            print(f"Error al obtener NNA: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self.db.cerrarConexion(conn)
+
+    def obtener_unidades_educativas(self):
+        """
+        Obtiene la lista de todas las unidades educativas.
+        """
+        conn = None
+        try:
+            conn = self.db.crearConexion()
+            if not conn:
+                return []
+            
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, nombre, codigo FROM unidad_educativa ORDER BY nombre')
+            
+            rows = cursor.fetchall()
+            
+            # Formatear el resultado (id, nombre, codigo)
+            columns = [description[0] for description in cursor.description]
+            result = [dict(zip(columns, row)) for row in rows]
+                
+            return result
+        except Exception as e:
+            print(f"Error al obtener Unidades Educativas: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self.db.cerrarConexion(conn)
+    
+    def listar_grados(self):
+        """
+        Retorna la lista de grados escolares válidos.
+        """
+        return ['1ro', '2do', '3ro', '4to', '5to', '6to', '1ro Sec', '2do Sec', '3ro Sec', '4to Sec', '5to Sec']
     
     def _validar_ids(self, nna_id, unidad_id):
         """Valida que los IDs existan en la base de datos"""
@@ -130,13 +207,13 @@ class MatriculaModel:
                     (nna_id, unidad_id))
             elif nna_id:
                 cursor.execute('''
-                    SELECT me.*, ue.nombre as unidad_nombre, ue.tipo as unidad_tipo
+                    SELECT me.*, ue.nombre as unidad_nombre
                     FROM matricula_educativa me
                     JOIN unidad_educativa ue ON me.unidad_id = ue.id
                     WHERE me.nna_id = ?''', (nna_id,))
             elif unidad_id:
                 cursor.execute('''
-                    SELECT me.*, p.primer_nombre, p.primer_apellido, p.documento_identidad
+                    SELECT me.*, p.primer_nombre, p.primer_apellido
                     FROM matricula_educativa me
                     JOIN persona p ON me.nna_id = p.id
                     WHERE me.unidad_id = ?''', (unidad_id,))
@@ -145,7 +222,7 @@ class MatriculaModel:
             
             rows = cursor.fetchall()
             if not rows:
-                return {"error": "No se encontraron registros", "status": "error"}
+                return {"data": [], "status": "success", "message": "No se encontraron registros"}
             
             # Convertir a lista de diccionarios
             columns = [description[0] for description in cursor.description]

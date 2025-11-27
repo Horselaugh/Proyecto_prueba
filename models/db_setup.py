@@ -1,4 +1,3 @@
-# database_connector.py
 import sqlite3
 import os
 from sqlite3 import Error
@@ -95,10 +94,13 @@ CREATE TABLE IF NOT EXISTS nna(
     FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
 );
 
+-- MODIFICACIÓN CLAVE: Agregar parentesco_id y su FK
 CREATE TABLE IF NOT EXISTS familiar(
     persona_id INTEGER PRIMARY KEY,
     tutor BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
+    parentesco_id INTEGER NOT NULL, 
+    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE,
+    FOREIGN KEY (parentesco_id) REFERENCES parentesco(id)
 );
 
 CREATE TABLE IF NOT EXISTS tercero(
@@ -343,10 +345,9 @@ CREATE TABLE IF NOT EXISTS cargo(
             return None
     
     # Se define la función que cierra la conexión con la base de datos
-    def cerrarConexion(self):
+    def cerrarConexion(self, conn=None): # Se modificó para recibir conn opcionalmente
         if self.conexion:
             self.conexion.close()
             self.conexion = None
-
-# Crear una instancia global para usar en otros módulos
-database = CreateDatabase()
+        elif conn: # Si se pasa una conexión temporal
+             conn.close()

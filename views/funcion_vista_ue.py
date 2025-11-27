@@ -1,68 +1,33 @@
 import customtkinter as ctk
 from tkinter import ttk, messagebox
 from typing import List, Dict, Any, Optional
+import sys
+import os
 
-# ======================================================================
-# 1. Definición del MOCK (Disponible globalmente)
-# Esto garantiza que el nombre 'MockControlador' exista
-# para la anotación de tipo en UnidadEducativaViewFrame.
-# ======================================================================
+# ----------------------------------------------------------------------
+# 1. Importación del Controlador Real
+# ----------------------------------------------------------------------
 
-class MockControlador:
-    """Clase MOCK para simular el controlador de Unidades Educativas."""
-    def __init__(self): self.vista = None
-    def set_view(self, view_instance): self.vista = view_instance
-    
-    def load_initial_data(self):
-        if self.vista:
-            mock_data = [
-                {"id": 1, "nombre": "E.B.N. Simon Bolivar", "director": "Ana Perez", "tipo": "Pública", "telefono": "04121234567"},
-                {"id": 2, "nombre": "U.E. Colegio San Jose", "director": "Luis Garcia", "tipo": "Privada", "telefono": "02129876543"},
-            ]
-            self.vista.display_list(mock_data)
-            self.vista.display_message("Mock: Datos iniciales cargados.", True)
-            
-    def handle_crear_ue(self, data): 
-        self.vista.display_message(f"Mock: UE '{data['nombre']}' creada.", True)
-        self.vista.limpiar_formulario()
-        self.load_initial_data()
-        
-    def handle_buscar_ue(self, *args, **kwargs): self.load_initial_data()
-    
-    def handle_cargar_ue_para_edicion(self, id_ue): 
-        self.vista._establecer_datos_formulario({"nombre": "Cargada Mock", "director": "Test", "tipo": "Pública", "telefono": "00000000000", "direccion": "Dir"}, id_ue)
-        self.vista.display_message(f"Mock: UE ID {id_ue} cargada.", True)
-        
-    def handle_actualizar_ue(self, id_ue, data): 
-        self.vista.display_message(f"Mock: UE ID {id_ue} actualizada.", True)
-        self.vista.limpiar_formulario()
-        self.load_initial_data()
-        
-    def handle_eliminar_ue(self, id_ue): 
-        self.vista.display_message(f"Mock: UE ID {id_ue} eliminada.", True)
-        self.vista.limpiar_formulario()
-        self.load_initial_data()
-
-
-# ======================================================================
-# 2. Manejo de la importación del Controlador Real
-# ======================================================================
+# Añadir el directorio superior y el actual al path para las importaciones
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 try:
-    # Se asume que el controlador está en un directorio superior
-    # from controllers.unidad_educativa_controller import UnidadEducativaControlador
-    
-    # Si la importación real funciona, se usaría UnidadEducativaControlador.
-    # Como no tenemos el archivo, simulamos el fallo para usar el Mock.
-    raise ImportError 
+    # Importar el controlador real, asumiendo que está en el mismo path.
+    from controllers.unidad_educativa_controller import UnidadEducativaControlador
 except ImportError:
-    # En caso de fallo (o para pruebas), usamos el Mock
-    UnidadEducativaControlador = MockControlador
+    # Si la importación falla, detener la ejecución.
+    print("Error: No se pudo importar UnidadEducativaControlador. Asegúrese de que 'unidad_educativa_controller.py' esté disponible.")
+    sys.exit(1)
+
+# Asignar la clase importada al nombre usado para la anotación
+ControladorDeUnidadEducativa = UnidadEducativaControlador
 
 
-# ======================================================================
-# 3. La Vista CTkFrame
-# ======================================================================
+# ----------------------------------------------------------------------
+# 2. La Vista CTkFrame
+# ----------------------------------------------------------------------
 
 class UnidadEducativaViewFrame(ctk.CTkFrame):
     """
@@ -70,8 +35,8 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
     Implementa la interfaz de CRUD y delega acciones al controlador.
     """
     
-    # Usamos MockControlador en la anotación, que ahora está definido.
-    def __init__(self, master, controller: MockControlador):
+    # Usamos el nombre de la clase real en la anotación
+    def __init__(self, master, controller: ControladorDeUnidadEducativa):
         super().__init__(master, corner_radius=0, fg_color="transparent") 
         
         self.controller = controller 
@@ -109,6 +74,7 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
                                         font=ctk.CTkFont(size=24, weight="bold"))
         self.title_label.grid(row=0, column=0, sticky="ew")
 
+        # Mensaje de estado, inicialmente vacío
         self.message_label = ctk.CTkLabel(title_frame, text="", font=ctk.CTkFont(size=14), text_color="#2ecc71")
         self.message_label.grid(row=1, column=0, pady=5, sticky="ew")
 
@@ -141,6 +107,7 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
                                           fg_color="#f39c12", hover_color="#e67e22")
         self.btn_limpiar.grid(row=6, column=1, padx=10, pady=(10, 20), sticky="ew")
         
+        # El botón de eliminar se deshabilita hasta que se carga una UE para edición
         self.btn_eliminar = ctk.CTkButton(form_frame, text="🗑️ Eliminar", command=self._handle_eliminar, 
                                          fg_color="#e74c3c", hover_color="#c0392b", state="disabled")
         self.btn_eliminar.grid(row=7, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
@@ -233,12 +200,17 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
     def _handle_buscar_id(self):
         """Maneja la búsqueda por ID."""
         id_str = self.buscar_id_var.get().strip()
-        if not id_str or not id_str.isdigit():
-            self.display_message("❌ Ingrese un ID numérico válido para buscar.", False)
+        if not id_str:
+            self.display_message("❌ Ingrese un ID para buscar.", False)
             self.controller.load_initial_data()
             return
-            
-        self.controller.handle_buscar_ue(busqueda_id=int(id_str))
+
+        try:
+            id_ue = int(id_str)
+            self.controller.handle_buscar_ue(busqueda_id=id_ue)
+        except ValueError:
+            self.display_message("❌ Ingrese un ID numérico válido para buscar.", False)
+            self.controller.load_initial_data()
 
     def _handle_buscar_nombre(self):
         """Maneja la búsqueda por Nombre."""
@@ -256,11 +228,15 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
             return
             
         if messagebox.askyesno("Confirmar Eliminación", 
-                               f"¿Está seguro de eliminar la Unidad Educativa ID {self.ue_id_cargada}? Esta acción es irreversible (eliminación lógica)."):
+                               f"¿Está seguro de eliminar la Unidad Educativa ID {self.ue_id_cargada}? Esta acción es irreversible (eliminación física)."):
             self.controller.handle_eliminar_ue(self.ue_id_cargada)
 
     def _on_treeview_select(self, event):
         """Carga los datos del elemento seleccionado en el Treeview al formulario."""
+        # Limpiar la selección previa para evitar disparar el evento múltiples veces
+        if not self.treeview.selection():
+            return
+            
         selected_item = self.treeview.focus()
         if not selected_item:
             return
@@ -269,6 +245,7 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
         values = self.treeview.item(selected_item, 'values')
         if values:
             try:
+                # El ID es el primer valor
                 id_ue = int(values[0])
                 # Delegar la carga completa al controlador
                 self.controller.handle_cargar_ue_para_edicion(id_ue)
@@ -284,7 +261,7 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
         return {
             "nombre": self.nombre_var.get().strip(),
             "director": self.director_var.get().strip(),
-            "tipo": self.tipo_var.get(),
+            "tipo": self.tipo_var.get(), # Tipo viene como 'Pública' o 'Privada'
             "telefono": self.telefono_var.get().strip(),
             "direccion": self.direccion_var.get().strip()
         }
@@ -294,7 +271,8 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
         self.ue_id_cargada = id_ue
         self.nombre_var.set(data.get("nombre", ""))
         self.director_var.set(data.get("director", ""))
-        self.tipo_var.set(data.get("tipo", "Pública"))
+        # El controlador ya capitalizó el tipo (e.g., de 'PUBLICA' a 'Pública')
+        self.tipo_var.set(data.get("tipo", "Pública")) 
         self.telefono_var.set(data.get("telefono", ""))
         self.direccion_var.set(data.get("direccion", ""))
         
@@ -333,7 +311,8 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
                 item.get('id', 'N/A'),
                 item.get('nombre', ''),
                 item.get('director', ''),
-                item.get('tipo', ''),
+                # Capitalizar el tipo para la visualización (e.g., 'PUBLICA' -> 'Pública')
+                item.get('tipo', '').capitalize(), 
                 item.get('telefono', '')
             )
             self.treeview.insert('', 'end', values=values)
@@ -342,32 +321,3 @@ class UnidadEducativaViewFrame(ctk.CTkFrame):
         """Muestra un mensaje de estado en la interfaz."""
         color = "#2ecc71" if is_success else "#e74c3c"
         self.message_label.configure(text=message, text_color=color)
-
-# ======================================================================
-# 4. Clase principal para ejecutar la aplicación de ejemplo
-# ======================================================================
-
-class App(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        
-        self.title("Sistema de Gestión Educativa - Mock View")
-        self.geometry("1000x700")
-        ctk.set_appearance_mode("Dark") # Establecer tema oscuro
-        
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-        
-        # Inicializar el controlador (Mock en este caso)
-        controller = UnidadEducativaControlador() 
-        
-        # Crear y mostrar la vista
-        self.view = UnidadEducativaViewFrame(self, controller)
-        self.view.grid(row=0, column=0, sticky="nsew")
-        
-        # Cargar datos iniciales al inicio
-        self.after(100, self.view.show)
-
-if __name__ == "__main__":
-    app = App()
-    app.mainloop()

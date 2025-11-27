@@ -1,36 +1,12 @@
 import customtkinter as ctk
 from tkinter import messagebox
+from controllers.articulo_controller import ArticuloControlador 
 
-# ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL)
-# ----------------------------------------------------------------------
-# MOCK TEMPORAL: Necesario para que el Controlador pueda inicializar su propiedad 'modelo'
-class MockArticuloModelo:
-    def insertar_articulo(self, codigo, articulo, descripcion): 
-        return 1 if codigo != "EXISTE" else 0
-    def buscar_articulo(self, termino_busqueda): 
-        if termino_busqueda == "123":
-            # Simula un objeto Row
-            data = {"id": 1, "codigo": "123", "articulo": "Derecho a la Vida", "descripcion": "Todo niño tiene derecho a la vida..."}
-            return type('MockRow', (dict,), data)
-        return None
-    def modificar_articulo(self, articulo_id, codigo, articulo, descripcion): 
-        return True
-    def eliminar_articulo(self, articulo_id): 
-        return True
-    # Añadir un mock para listar si fuera necesario, aunque la vista no lo usa directamente
-    def obtener_todos_los_articulos(self):
-        return []
-
-# ----------------------------------------------------------------------
-# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
-# ----------------------------------------------------------------------
-# Este mock solo necesita los métodos que la vista llama directamente.
+    
 class ArticuloControlador:
     def __init__(self):
-        self.modelo = MockArticuloModelo() 
+        self.modelo = ArticuloControlador() 
         self.vista = None
-        print("ADVERTENCIA: Usando Mock ArticuloControlador. Reemplace con el controlador real en menu.py.")
 
     def set_view(self, view_instance):
         self.vista = view_instance

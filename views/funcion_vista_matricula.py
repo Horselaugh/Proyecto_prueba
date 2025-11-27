@@ -3,75 +3,9 @@ from tkinter import messagebox, N, S, E, W
 from typing import Dict, List, Optional
 import datetime
 
-# ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL)
-# ----------------------------------------------------------------------
-class MockMatriculaModelo:
-    def obtener_nna(self):
-        return [
-            {"id": 101, "nombre_completo": "Ana Torres"}, 
-            {"id": 102, "nombre_completo": "Luis Gómez"}
-        ]
-    
-    def obtener_unidades_educativas(self):
-        return [
-            {"id": 201, "nombre": "UE Simón Bolívar", "codigo": "SB001"}, 
-            {"id": 202, "nombre": "CEI Miranda", "codigo": "MI002"}
-        ]
-
-    def crear_matricula(self, **kwargs):
-        # Simula éxito
-        return {"status": "success", "message": "Matrícula creada.", "id": 1}
-
-    def buscar_matricula(self, nna_id, unidad_id):
-        if nna_id == 101 and unidad_id == 201:
-            return [{
-                "nna_id": 101, "nna_nombre": "Ana Torres",
-                "unidad_id": 201, "unidad_nombre": "UE Simón Bolívar", 
-                "grado": "5to Grado", "fecha_matricula": "2024-09-15", 
-                "activa": True
-            }]
-        return []
-
-    def actualizar_matricula(self, nna_id, unidad_id, **kwargs):
-        return {"status": "success", "message": f"Matrícula NNA {nna_id} actualizada."}
-
-    def eliminar_matricula(self, nna_id, unidad_id):
-        return {"status": "success", "message": f"Matrícula eliminada."}
-    
-    def listar_grados(self):
-        return ["1er Grado", "2do Grado", "3er Grado", "4to Grado", "5to Grado", "6to Grado"]
-
-# ----------------------------------------------------------------------
-# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
-# ----------------------------------------------------------------------
-class MatriculaControlador:
-    def __init__(self):
-        self.modelo = MockMatriculaModelo()
-        self.vista = None
-
-    def set_view(self, view_instance):
-        self.vista = view_instance
-        
-    def load_initial_data(self):
-        self.vista._cargar_comboboxes(self.modelo.obtener_nna(), 
-                                      self.modelo.obtener_unidades_educativas(),
-                                      self.modelo.listar_grados())
-        self.vista.display_message("Listo para gestionar Matrículas. 🎓", is_success=True)
-
-    def handle_crear_matricula(self, data): self.vista.display_message("Mock: Crear Matrícula", True)
-    def handle_buscar_matricula(self, nna_id, unidad_id):
-        resultados = self.modelo.buscar_matricula(nna_id, unidad_id)
-        if resultados:
-            self.vista.display_message("Mock: Matrícula encontrada", True)
-            self.vista._establecer_datos_formulario(resultados[0])
-        else:
-            self.vista.display_message("Mock: Matrícula no encontrada", False)
-            self.vista.limpiar_entradas(clean_nna_unidad=False)
-
-    def handle_actualizar_matricula(self, data): self.vista.display_message("Mock: Actualizar Matrícula", True)
-    def handle_eliminar_matricula(self, nna_id, unidad_id): self.vista.display_message("Mock: Eliminar Matrícula", True)
-
+# Se importa la clase real del controlador para la vista.
+# Se asume que matricula_controller.py está en la carpeta 'controllers'
+from controllers.matricula_controller import MatriculaControlador 
 
 # ----------------------------------------------------------------------
 # CLASE DE VISTA ADAPTADA
@@ -83,11 +17,12 @@ class MatriculaViewFrame(ctk.CTkFrame):
     Hereda de CTkFrame para ser cargado en el panel de contenido de MenuApp.
     """
     
+    # Se define la dependencia del controlador real
     def __init__(self, master, controller: MatriculaControlador):
         super().__init__(master, corner_radius=0, fg_color="transparent") 
         
         self.controller = controller 
-        self.controller.set_view(self) 
+        self.controller.set_view(self) # Enlaza la vista al controlador
         
         # Mapeos
         self.nna_map: Dict[str, int] = {} # Nombre NNA -> ID
@@ -107,9 +42,9 @@ class MatriculaViewFrame(ctk.CTkFrame):
         
         self._configurar_interfaz()
 
-    # MÉTODO CLAVE: Requerido por la estructura de menu.py
+    # MÉTODO CLAVE: Inicia la carga de datos
     def show(self):
-        """Llamado por MenuApp, invoca la carga de datos iniciales del controlador."""
+        """Llamado por la aplicación principal, invoca la carga de datos iniciales del controlador."""
         self.controller.load_initial_data() 
 
     def _configurar_interfaz(self):
@@ -129,8 +64,8 @@ class MatriculaViewFrame(ctk.CTkFrame):
         main_frame.columnconfigure((0, 1), weight=1)
         
         # Dropdowns de selección
-        self._create_selection_widgets(main_frame, 0, "NNA:", self.nna_var, self.controller.handle_buscar_matricula)
-        self._create_selection_widgets(main_frame, 1, "Unidad Educativa:", self.unidad_var, self.controller.handle_buscar_matricula)
+        self._create_selection_widgets(main_frame, 0, "NNA:", self.nna_var)
+        self._create_selection_widgets(main_frame, 1, "Unidad Educativa:", self.unidad_var)
         
         # Separador
         ctk.CTkFrame(main_frame, height=2, fg_color="#555555").grid(row=2, column=0, columnspan=2, sticky="ew", padx=20, pady=(10, 10))
@@ -164,22 +99,21 @@ class MatriculaViewFrame(ctk.CTkFrame):
                       fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
         
 
-    def _create_selection_widgets(self, parent, row_offset, label_text, var, command_to_bind):
+    def _create_selection_widgets(self, parent, row_offset, label_text, var):
         """Crea la etiqueta y el ComboBox de NNA o Unidad Educativa."""
         ctk.CTkLabel(parent, text=label_text, font=("Arial", 14)).grid(row=row_offset*2, column=0, sticky="w", padx=20, pady=(20, 5))
         
         combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40, width=300)
         combo.grid(row=row_offset*2 + 1, column=0, sticky="ew", padx=20, pady=(0, 10))
         
-        # Botón de Búsqueda (Asumiendo que buscar se activa al seleccionar/cambiar el ComboBox)
-        # Aquí, lo vincularemos al evento de cambio para simplificar la interfaz.
-        # Al cambiar NNA o Unidad, intentamos buscar la matrícula existente.
-        def _on_change(event):
-            self._handle_buscar_matricula()
+        # Vincular al evento de cambio para activar la búsqueda automática
+        def _on_change(*args):
+            # El evento se lanza incluso al establecer el valor inicial, por eso el filtro es clave.
+            if var.get() not in ["Seleccionar NNA", "Seleccionar Unidad", "Cargando..."]:
+                self._handle_buscar_matricula()
         
         var.trace_add("write", _on_change)
         
-        # Devolvemos el combo en caso de que necesitemos configurarlo más tarde
         if "NNA" in label_text:
             self.nna_combo = combo
         elif "Unidad" in label_text:
@@ -201,10 +135,12 @@ class MatriculaViewFrame(ctk.CTkFrame):
     # ----------------------------------------------------------------------
     
     def _handle_crear_matricula(self):
+        """Recolecta datos y delega la creación al controlador."""
         data = self._obtener_datos_formulario()
         self.controller.handle_crear_matricula(data)
             
     def _handle_buscar_matricula(self):
+        """Busca la matrícula basada en la selección actual de NNA y Unidad."""
         nna_nombre = self.nna_var.get()
         unidad_nombre = self.unidad_var.get()
         
@@ -215,12 +151,12 @@ class MatriculaViewFrame(ctk.CTkFrame):
         if nna_id and unidad_id and nna_nombre not in ["Seleccionar NNA", "Cargando..."] and unidad_nombre not in ["Seleccionar Unidad", "Cargando..."]:
             self.controller.handle_buscar_matricula(nna_id, unidad_id)
         else:
-             # Si no hay selección válida, limpia todo menos la selección
              self.limpiar_entradas(clean_nna_unidad=False)
-             self.display_message("Seleccione un NNA y una Unidad Educativa para buscar la matrícula existente.", is_success=True) # Mensaje neutro
+             self.display_message("Seleccione un NNA y una Unidad Educativa para buscar la matrícula existente.", is_success=True) 
 
             
     def _handle_actualizar_matricula(self):
+        """Recolecta datos, verifica estado y delega la actualización al controlador."""
         if not self.matricula_cargada_id:
             self.display_message("❌ Primero debe buscar y cargar una matrícula para modificarla.", is_success=False)
             return
@@ -231,6 +167,7 @@ class MatriculaViewFrame(ctk.CTkFrame):
         self.controller.handle_actualizar_matricula(data)
             
     def _handle_eliminar_matricula(self):
+        """Verifica estado y delega la eliminación al controlador con confirmación."""
         if not self.matricula_cargada_id:
             self.display_message("❌ Primero debe buscar y cargar una matrícula para eliminarla.", is_success=False)
             return
@@ -244,16 +181,21 @@ class MatriculaViewFrame(ctk.CTkFrame):
 
     def limpiar_entradas(self, clean_nna_unidad=True): 
         """Limpia los campos de matrícula y el estado de la matrícula cargada."""
+        
         if clean_nna_unidad:
             self.nna_var.set("Seleccionar NNA")
             self.unidad_var.set("Seleccionar Unidad")
         
-        self.grado_var.set(self.grado_combo.cget("values")[0] if self.grado_combo.cget("values") else "Seleccionar Grado")
+        grados_values = self.grado_combo.cget("values")
+        self.grado_var.set(grados_values[0] if grados_values and grados_values[0] != "Cargando..." else "Seleccionar Grado")
         self.fecha_matricula_var.set(datetime.date.today().isoformat())
         self.activa_var.set(True)
+        
         self.matricula_cargada_id = None
         self._set_btn_state("disabled")
-        self.display_message("")
+        if self.message_label.cget("text") and not self.message_label.cget("text").startswith("Seleccione un NNA"):
+             self.display_message("")
+
 
     def _obtener_datos_formulario(self): 
         """Recolecta los datos de los campos de entrada."""
@@ -264,7 +206,7 @@ class MatriculaViewFrame(ctk.CTkFrame):
         unidad_id = self.unidad_map.get(unidad_nombre)
         
         return {
-            "nna_id": nna_id,
+            "nna_id": nna_id, 
             "unidad_id": unidad_id,
             "grado": self.grado_var.get(),
             "fecha_matricula": self.fecha_matricula_var.get().strip(),
@@ -274,10 +216,14 @@ class MatriculaViewFrame(ctk.CTkFrame):
     def _establecer_datos_formulario(self, data: dict): 
         """Establece los valores de una matrícula cargada y habilita botones."""
         
-        # No modificamos la selección de NNA/Unidad, solo los campos de la matrícula
+        if 'nna_id' not in data or 'unidad_id' not in data:
+            self.display_message("❌ Error: Datos de matrícula incompletos (falta ID de NNA/Unidad).", is_success=False)
+            return
+
         self.grado_var.set(data.get("grado", ""))
         self.fecha_matricula_var.set(data.get("fecha_matricula", datetime.date.today().isoformat()))
-        self.activa_var.set(data.get("activa", False))
+        activa_db = data.get("activa", 0)
+        self.activa_var.set(bool(activa_db)) 
         
         self.matricula_cargada_id = {'nna_id': data['nna_id'], 'unidad_id': data['unidad_id']}
         self._set_btn_state("normal")
@@ -286,23 +232,25 @@ class MatriculaViewFrame(ctk.CTkFrame):
         """Carga las opciones en los ComboBoxes de NNA, Unidad y Grado."""
         
         # Cargar NNA
-        nna_nombres = [n['nombre_completo'] for n in nna_list]
+        nna_nombres = ["Seleccionar NNA"] + [n['nombre_completo'] for n in nna_list]
         self.nna_map = {n['nombre_completo']: n['id'] for n in nna_list}
-        if nna_nombres:
-            self.nna_combo.configure(values=nna_nombres)
-            self.nna_var.set(nna_nombres[0])
+        self.nna_combo.configure(values=nna_nombres)
+        self.nna_var.set(nna_nombres[0])
         
         # Cargar Unidades
-        unidad_nombres = [u['nombre'] for u in unidad_list]
+        unidad_nombres = ["Seleccionar Unidad"] + [u['nombre'] for u in unidad_list]
         self.unidad_map = {u['nombre']: u['id'] for u in unidad_list}
-        if unidad_nombres:
-            self.unidad_combo.configure(values=unidad_nombres)
-            self.unidad_var.set(unidad_nombres[0])
+        self.unidad_combo.configure(values=unidad_nombres)
+        self.unidad_var.set(unidad_nombres[0])
             
         # Cargar Grados
         if grados_list:
-            self.grado_combo.configure(values=grados_list)
-            self.grado_var.set(grados_list[0])
+            self.grado_combo.configure(values=["Seleccionar Grado"] + grados_list)
+            self.grado_var.set("Seleccionar Grado")
+        else:
+            self.grado_combo.configure(values=["Seleccionar Grado"])
+            self.grado_var.set("Seleccionar Grado")
+
             
     def _set_btn_state(self, state):
         """Habilita o deshabilita los botones de Modificar/Eliminar."""

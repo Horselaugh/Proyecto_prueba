@@ -3,7 +3,7 @@ import os
 from typing import Dict, Any, Optional, TYPE_CHECKING
 from tkinter import messagebox # Se puede usar para confirmaciones/mensajes de error graves
 
-# Ajuste el path si es necesario para la importación local
+
 # sys.path.append(os.path.join(os.path.dirname(__file__))) 
 
 # Se importa el modelo real (asumiendo que está disponible)

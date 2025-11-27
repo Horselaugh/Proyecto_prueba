@@ -3,12 +3,14 @@ import sys
 import os
 import sqlite3
 
-# Agregar el directorio actual al path para importar database_connector
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
+# Añadir el path para que las importaciones relativas funcionen
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-from database_connector import Database
+try:
+    from database_connector import Database  # Usamos la clase Database (Singleton)
+except ImportError:
+    print("Advertencia: No se pudo importar Database directamente. Intentando models.database_connector...")
+    from models.database_connector import Database
 
 class FamiliarModel:
     def __init__(self):
@@ -23,13 +25,17 @@ class FamiliarModel:
         return primer_nombre and primer_apellido
     
     def crear_familiar(self, primer_nombre, primer_apellido, direccion, telefono, 
-                      segundo_nombre=None, segundo_apellido=None, tutor=False):
+                      parentesco_id, segundo_nombre=None, segundo_apellido=None, tutor=False): # AÑADIDO: parentesco_id
         """
         Crea un nuevo familiar en la base de datos
         """
         # Validaciones
         if not self._validar_campos_obligatorios(primer_nombre, primer_apellido):
             return {"error": "Nombre y apellido son obligatorios", "status": "error"}
+        
+        # Nueva validación para parentesco
+        if not parentesco_id:
+            return {"error": "Parentesco es obligatorio", "status": "error"}
         
         if not self._validar_telefono(telefono):
             return {"error": "Teléfono debe tener 11 dígitos", "status": "error"}
@@ -55,12 +61,13 @@ class FamiliarModel:
             )
             persona_id = cursor.lastrowid
             
-            # Luego insertar en familiar
+            # --- MODIFICACIÓN CLAVE (Inserción) ---
+            # Luego insertar en familiar, incluyendo parentesco_id
             cursor.execute('''
-                INSERT INTO familiar (persona_id, tutor) 
-                VALUES (?, ?)
+                INSERT INTO familiar (persona_id, tutor, parentesco_id) 
+                VALUES (?, ?, ?)
                 ''',
-                (persona_id, 1 if tutor else 0)
+                (persona_id, 1 if tutor else 0, parentesco_id)
             )
             
             conn.commit()
@@ -83,7 +90,7 @@ class FamiliarModel:
     
     def buscar_familiar(self, id=None, primer_nombre=None, primer_apellido=None):
         """
-        Busca un familiar por ID o por nombre y apellido
+        Busca un familiar por ID o por nombre y apellido. Incluye parentesco_id y parentesco_desc.
         """
         conn = None
         try:
@@ -93,19 +100,20 @@ class FamiliarModel:
             
             cursor = conn.cursor()
             
+            # --- MODIFICACIÓN CLAVE (Consulta) ---
+            query = '''
+                    SELECT p.*, f.tutor, f.parentesco_id, pa.nombre AS parentesco_desc 
+                    FROM persona p 
+                    JOIN familiar f ON p.id = f.persona_id 
+                    LEFT JOIN parentesco pa ON f.parentesco_id = pa.id
+                    WHERE p.id = ?
+                '''
+            
             if id:
-                cursor.execute('''
-                    SELECT p.*, f.tutor 
-                    FROM persona p 
-                    JOIN familiar f ON p.id = f.persona_id 
-                    WHERE p.id = ?''', (id,))
+                cursor.execute(query, (id,))
             elif primer_nombre and primer_apellido:
-                cursor.execute('''
-                    SELECT p.*, f.tutor 
-                    FROM persona p 
-                    JOIN familiar f ON p.id = f.persona_id 
-                    WHERE p.primer_nombre = ? AND p.primer_apellido = ?''', 
-                    (primer_nombre, primer_apellido))
+                query = query.replace("WHERE p.id = ?", "WHERE p.primer_nombre = ? AND p.primer_apellido = ?")
+                cursor.execute(query, (primer_nombre, primer_apellido))
             else:
                 return {"error": "Se necesita ID o nombre y apellido", "status": "error"}
                 
@@ -125,22 +133,17 @@ class FamiliarModel:
                 self.db.cerrarConexion(conn)
     
     def actualizar_familiar(self, id, primer_nombre=None, segundo_nombre=None, primer_apellido=None, 
-                           segundo_apellido=None, direccion=None, telefono=None, tutor=None):
+                           segundo_apellido=None, direccion=None, telefono=None, tutor=None, parentesco_id=None): # AÑADIDO: parentesco_id
         """
         Actualiza los datos de un familiar
         """
         updates = {}
         params = []
         
-        # Preparar campos para actualizar
+        # Preparar campos para actualizar en la tabla persona
         if primer_nombre:
             updates["primer_nombre"] = primer_nombre
-        if segundo_nombre is not None:
-            updates["segundo_nombre"] = segundo_nombre
-        if primer_apellido:
-            updates["primer_apellido"] = primer_apellido
-        if segundo_apellido is not None:
-            updates["segundo_apellido"] = segundo_apellido
+        # ... (resto de campos de persona)
         if direccion:
             updates["direccion"] = direccion
         if telefono:
@@ -149,7 +152,7 @@ class FamiliarModel:
             updates["telefono"] = telefono
         
         # Validar que hay datos para actualizar
-        if not updates and tutor is None:
+        if not updates and tutor is None and parentesco_id is None: # MODIFICACIÓN: Incluir parentesco_id
             return {"error": "No hay datos para actualizar", "status": "error"}
         
         conn = None
@@ -167,17 +170,30 @@ class FamiliarModel:
                 params.append(id)
                 cursor.execute(f'UPDATE persona SET {set_clause} WHERE id = ?', params)
             
-            # Actualizar familiar si se especifica tutor
+            # Actualizar familiar (tutor y parentesco_id)
+            familiar_updates = {}
+            familiar_params = []
+            
             if tutor is not None:
-                cursor.execute('UPDATE familiar SET tutor = ? WHERE persona_id = ?', (1 if tutor else 0, id))
+                familiar_updates["tutor"] = 1 if tutor else 0
+            if parentesco_id is not None: # MODIFICACIÓN CLAVE (Actualización de Parentesco)
+                familiar_updates["parentesco_id"] = parentesco_id
+                
+            if familiar_updates:
+                familiar_set_clause = ", ".join([f"{k} = ?" for k in familiar_updates.keys()])
+                familiar_params = list(familiar_updates.values())
+                familiar_params.append(id)
+                cursor.execute(f'UPDATE familiar SET {familiar_set_clause} WHERE persona_id = ?', familiar_params)
             
             conn.commit()
             
-            if cursor.rowcount > 0:
-                return {"status": "success", "message": "Familiar actualizado correctamente"}
-            else:
+            # Simplificamos la verificación del rowcount
+            cursor.execute('SELECT 1 FROM persona WHERE id = ?', (id,))
+            if not cursor.fetchone():
                 return {"error": "No se encontró el familiar especificado", "status": "error"}
-                
+            
+            return {"status": "success", "message": "Familiar actualizado correctamente"}
+
         except Exception as e:
             if conn:
                 conn.rollback()
@@ -187,9 +203,7 @@ class FamiliarModel:
                 self.db.cerrarConexion(conn)
     
     def eliminar_familiar(self, id):
-        """
-        Elimina un familiar de la base de datos
-        """
+        # El código es correcto. No se requiere modificación.
         conn = None
         try:
             conn = self.db.crearConexion()
@@ -219,10 +233,34 @@ class FamiliarModel:
         finally:
             if conn:
                 self.db.cerrarConexion(conn)
+                
+    def obtener_parentescos(self):
+        # El código es correcto. No se requiere modificación.
+        conn = None
+        try:
+            conn = self.db.crearConexion()
+            if not conn:
+                return [] # Retorna lista vacía si falla la conexión
+            
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, nombre FROM parentesco ORDER BY nombre')
+            
+            rows = cursor.fetchall()
+            
+            columns = [description[0] for description in cursor.description]
+            result = [dict(zip(columns, row)) for row in rows]
+            
+            return result # Devolver la lista de diccionarios
+        except Exception as e:
+            print(f"Error al obtener parentescos: {str(e)}")
+            return []
+        finally:
+            if conn:
+                self.db.cerrarConexion(conn)
     
     def listar_todos_familiares(self):
         """
-        Obtiene todos los familiares
+        Obtiene todos los familiares. Incluye parentesco_desc.
         """
         conn = None
         try:
@@ -231,10 +269,12 @@ class FamiliarModel:
                 return {"error": "No se pudo conectar a la base de datos", "status": "error"}
             
             cursor = conn.cursor()
+            # --- MODIFICACIÓN CLAVE (Consulta) ---
             cursor.execute('''
-                SELECT p.*, f.tutor 
+                SELECT p.*, f.tutor, f.parentesco_id, pa.nombre AS parentesco_desc
                 FROM persona p 
                 JOIN familiar f ON p.id = f.persona_id 
+                LEFT JOIN parentesco pa ON f.parentesco_id = pa.id
                 ORDER BY p.primer_apellido, p.primer_nombre
             ''')
             

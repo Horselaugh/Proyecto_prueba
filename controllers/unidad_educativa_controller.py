@@ -3,44 +3,29 @@ import os
 from typing import List, Dict, Any, Optional
 
 # ----------------------------------------------------------------------
-# MOCKS (TEMPORAL) - Simulando el Modelo
+# Importación del Modelo Real
 # ----------------------------------------------------------------------
-class MockUnidadEducativaModel:
-    """Simulación del modelo de base de datos para Unidades Educativas."""
-    
-    def crear_unidad_educativa(self, **kwargs) -> Dict[str, Any]:
-        # Simula éxito con un ID
-        return {"status": "success", "id": 1, "message": f"UE {kwargs['nombre']} creada correctamente."}
-        
-    def buscar_unidad_educativa(self, id: Optional[int] = None, nombre: Optional[str] = None, tipo: Optional[str] = None) -> Dict[str, Any]:
-        """Simula la consulta con filtros."""
-        mock_data = [
-            {"id": 1, "nombre": "E.B.N. Simon Bolivar", "director": "Ana Perez", "tipo": "Pública", "telefono": "04121234567", "direccion": "Calle A, Sector 1"},
-            {"id": 2, "nombre": "U.E. Colegio San Jose", "director": "Luis Garcia", "tipo": "Privada", "telefono": "02129876543", "direccion": "Av. B, Urb. Central"},
-        ]
-        
-        data_filtered = mock_data
-        if id:
-            data_filtered = [d for d in mock_data if d['id'] == id]
-        elif nombre:
-            data_filtered = [d for d in mock_data if nombre.lower() in d['nombre'].lower()]
-        elif tipo:
-            data_filtered = [d for d in mock_data if d['tipo'].lower() == tipo.lower()]
-            
-        return {"status": "success", "data": data_filtered, "message": f"Encontradas {len(data_filtered)} UE."}
-        
-    def actualizar_unidad_educativa(self, id: int, **kwargs) -> Dict[str, Any]:
-        return {"status": "success", "message": f"UE ID {id} actualizada correctamente."}
-        
-    def eliminar_unidad_educativa(self, id: int) -> Dict[str, Any]:
-        return {"status": "success", "message": f"UE ID {id} eliminada lógicamente."}
-    
-# Se asume que el modelo real existe si no hay excepción
+
+# Añadir el directorio superior y el directorio actual al path para las importaciones
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Si 'models' no estuviera en el mismo nivel, se necesitaría un ajuste de path.
+# Para este ejemplo, asumimos que todos los archivos están en el mismo directorio
+# o que la estructura permite la importación directa.
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
 try:
+    # Intenta importar el modelo real.
     from models.unidad_educativa_model import UnidadEducativaModel
 except ImportError:
-    UnidadEducativaModel = MockUnidadEducativaModel
+    # Esto solo debería ocurrir en un entorno de ejecución específico.
+    print("Error: No se pudo importar UnidadEducativaModel. Asegúrese de que 'unidad_educativa_model.py' y 'database_connector.py' estén disponibles.")
+    # Si la importación falla, se podría usar un mock, pero el objetivo es usar el real.
+    sys.exit(1) # Detener si no se puede inicializar el modelo.
 
+# ----------------------------------------------------------------------
+# Controlador
+# ----------------------------------------------------------------------
 
 class UnidadEducativaControlador:
     """Controlador para gestionar las operaciones de Unidades Educativas (UE)."""
@@ -57,32 +42,42 @@ class UnidadEducativaControlador:
         """Carga inicial de datos (lista completa) al mostrar la vista."""
         if not self.vista: return
         try:
-            resultado = self.model.buscar_unidad_educativa()
+            # Usar el método de listado completo del modelo
+            resultado = self.model.listar_todas_unidades_educativas()
+            
             if resultado['status'] == 'success':
-                self.vista.display_list(resultado['data'])
-                self.vista.display_message(f"✅ Cargadas {len(resultado['data'])} Unidades Educativas.", True)
+                data = resultado.get('data', [])
+                self.vista.display_list(data)
+                self.vista.display_message(f"✅ Cargadas {len(data)} Unidades Educativas.", True)
             else:
-                self.vista.display_message(f"❌ Error al cargar UE: {resultado.get('message', 'Desconocido')}", False)
+                self.vista.display_list([])
+                self.vista.display_message(f"❌ Error al cargar UE: {resultado.get('error', 'Desconocido')}", False)
         except Exception as e:
+            self.vista.display_list([])
             self.vista.display_message(f"❌ Error interno al cargar datos: {str(e)}", False)
 
     def handle_crear_ue(self, data: Dict[str, Any]):
         """Crea una nueva Unidad Educativa."""
         if not self.vista: return
         
-        # Validaciones básicas
-        if not data.get('nombre') or not data.get('director') or not data.get('telefono'):
-            self.vista.display_message("❌ Nombre, director y teléfono son obligatorios.", False)
-            return
-            
+        # El modelo ya hace las validaciones obligatorias, solo llama.
         try:
-            resultado = self.model.crear_unidad_educativa(**data)
+            # El modelo necesita todos los campos definidos, usar .get() para seguridad
+            nombre = data.get('nombre', '')
+            director = data.get('director', '')
+            tipo = data.get('tipo', '')
+            telefono = data.get('telefono', '')
+            direccion = data.get('direccion', '')
+
+            resultado = self.model.crear_unidad_educativa(
+                nombre=nombre, director=director, tipo=tipo, telefono=telefono, direccion=direccion)
+                
             if resultado['status'] == 'success':
                 self.vista.display_message(f"✅ {resultado['message']}", True)
                 self.vista.limpiar_formulario()
                 self.load_initial_data() # Refrescar lista
             else:
-                self.vista.display_message(f"❌ Error al crear UE: {resultado.get('message', 'Desconocido')}", False)
+                self.vista.display_message(f"❌ Error al crear UE: {resultado.get('error', 'Desconocido')}", False)
         except Exception as e:
             self.vista.display_message(f"❌ Error interno al crear UE: {str(e)}", False)
 
@@ -91,16 +86,30 @@ class UnidadEducativaControlador:
         if not self.vista: return
 
         try:
-            resultado = self.model.buscar_unidad_educativa(id=busqueda_id, nombre=busqueda_nombre)
-            
-            if resultado['status'] == 'success':
-                self.vista.display_list(resultado['data'])
-                if resultado['data']:
-                    self.vista.display_message(f"✅ Encontradas {len(resultado['data'])} Unidades Educativas.", True)
-                else:
-                    self.vista.display_message("⚠️ No se encontraron Unidades Educativas.", False)
+            resultado = None
+            if busqueda_id is not None:
+                # Búsqueda por ID
+                resultado = self.model.buscar_unidad_educativa(id=busqueda_id)
+            elif busqueda_nombre:
+                # Búsqueda por Nombre (parcial)
+                resultado = self.model.buscar_unidad_educativa(nombre=busqueda_nombre)
             else:
-                self.vista.display_message(f"❌ Error al buscar UE: {resultado.get('message', 'Desconocido')}", False)
+                # Si se llama sin parámetros, cargar todos (lo cual es redundante, pero por si acaso)
+                self.load_initial_data()
+                return
+
+            if resultado is None:
+                return
+
+            if resultado['status'] == 'success':
+                data = resultado.get('data', [])
+                self.vista.display_list(data)
+                if data:
+                    self.vista.display_message(f"✅ Encontradas {len(data)} Unidades Educativas.", True)
+                else:
+                    self.vista.display_message("⚠️ No se encontraron Unidades Educativas con ese criterio.", False)
+            else:
+                self.vista.display_message(f"❌ Error al buscar UE: {resultado.get('error', 'Desconocido')}", False)
                 self.vista.display_list([])
         except Exception as e:
             self.vista.display_message(f"❌ Error interno al buscar UE: {str(e)}", False)
@@ -113,8 +122,12 @@ class UnidadEducativaControlador:
         try:
             resultado = self.model.buscar_unidad_educativa(id=id_ue)
             
-            if resultado['status'] == 'success' and resultado['data']:
+            if resultado['status'] == 'success' and resultado.get('data'):
+                # Los datos vienen como tipo 'PUBLICA' o 'PRIVADA' en mayúsculas desde el modelo/BD
                 data = resultado['data'][0]
+                # Asegurar que el 'tipo' sea Capitalizado para el ComboBox de la vista (ej: Pública)
+                data['tipo'] = data.get('tipo', 'PÚBLICA').capitalize() 
+                
                 self.vista._establecer_datos_formulario(data, id_ue)
                 self.vista.display_message(f"✅ UE ID {id_ue} cargada para edición.", True)
             else:
@@ -127,16 +140,15 @@ class UnidadEducativaControlador:
         if not self.vista: return
             
         try:
-            # El modelo solo necesita los campos a actualizar
-            data_to_update = {k: v for k, v in data.items() if v}
-            resultado = self.model.actualizar_unidad_educativa(id=id_ue, **data_to_update)
+            # El modelo maneja la validación de qué campos actualizar (solo si tienen valor)
+            resultado = self.model.actualizar_unidad_educativa(id=id_ue, **data)
             
             if resultado['status'] == 'success':
                 self.vista.display_message(f"✅ {resultado['message']}", True)
                 self.vista.limpiar_formulario()
                 self.load_initial_data() # Refrescar lista
             else:
-                self.vista.display_message(f"❌ Error al actualizar UE: {resultado.get('message', 'Desconocido')}", False)
+                self.vista.display_message(f"❌ Error al actualizar UE: {resultado.get('error', 'Desconocido')}", False)
         except Exception as e:
             self.vista.display_message(f"❌ Error interno al actualizar UE: {str(e)}", False)
 
@@ -145,6 +157,7 @@ class UnidadEducativaControlador:
         if not self.vista: return
 
         try:
+            # El modelo realiza la eliminación física (DELETE)
             resultado = self.model.eliminar_unidad_educativa(id_ue)
             
             if resultado['status'] == 'success':
@@ -152,6 +165,6 @@ class UnidadEducativaControlador:
                 self.vista.limpiar_formulario()
                 self.load_initial_data() # Refrescar lista
             else:
-                self.vista.display_message(f"❌ Error al eliminar UE: {resultado.get('message', 'Desconocido')}", False)
+                self.vista.display_message(f"❌ Error al eliminar UE: {resultado.get('error', 'Desconocido')}", False)
         except Exception as e:
             self.vista.display_message(f"❌ Error interno al eliminar UE: {str(e)}", False)

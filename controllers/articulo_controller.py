@@ -2,38 +2,18 @@ import sys
 import os
 from typing import Dict, Optional
 
-# Se mantiene la importación de ArticuloModelo y la configuración de paths.
-# Si ArticuloModelo no existe, necesitarás asegurar que el MockArticuloModelo se use en su lugar.
+sys.path.append(os.path.join(os.path.dirname(__file__))) 
+
 try:
-    # Intenta importar el modelo real si está disponible
-    # Esto es peligroso si el path no está configurado, por eso se mantiene la estructura de imports.
     from models.articulo_model import ArticuloModelo
-    from sqlite3 import Row
-except ImportError:
-    # Fallback si el modelo real no se encuentra, usamos un mock simple para simular la estructura.
-    # El modelo real debe estar implementado en el entorno de ejecución.
-    class MockArticuloModelo:
-        def insertar_articulo(self, codigo, articulo, descripcion): 
-            return 1 if codigo != "EXISTE" else 0
-        def buscar_articulo(self, termino_busqueda): 
-            if termino_busqueda == "123":
-                data = {"id": 1, "codigo": "123", "articulo": "Derecho a la Vida", "descripcion": "Todo niño tiene derecho a la vida..."}
-                return type('MockRow', (dict,), data)
-            return None
-        def modificar_articulo(self, articulo_id, codigo, articulo, descripcion): 
-            return True
-        def eliminar_articulo(self, articulo_id): 
-            return True
-        def obtener_todos_los_articulos(self): 
-            return []
-    ArticuloModelo = MockArticuloModelo # Asignamos el Mock como el Modelo
+except ImportError as e:
+    raise ImportError(f"No se pudo importar ArticuloModelo: {e}")
     
     
 class ArticuloControlador:
     """Controlador para gestionar las operaciones de Artículos LOPNNA"""
 
     def __init__(self):
-        # Asumiendo que ArticuloModelo es la clase correcta o el Mock
         self.model = ArticuloModelo()
         self.vista = None
 

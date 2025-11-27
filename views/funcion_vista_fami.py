@@ -1,82 +1,14 @@
+# funcion_vista_fami.py
+
 import customtkinter as ctk
 from tkinter import messagebox, N, S, E, W
 from typing import Dict, List, Optional
 import sys
 import os
 
-# ----------------------------------------------------------------------
-# MOCK DE MODELO (TEMPORAL)
-# ----------------------------------------------------------------------
-class MockFamiliarModelo:
-    # Simula una lista de familiares (para listado inicial, si aplica)
-    def obtener_familiares(self, **kwargs):
-        return [
-            {"id": 1, "primer_nombre": "Juan", "primer_apellido": "Pérez", "parentesco_id": 1, "parentesco_desc": "Padre"},
-            {"id": 2, "primer_nombre": "María", "primer_apellido": "Gómez", "parentesco_id": 2, "parentesco_desc": "Madre"},
-        ]
-    
-    def obtener_parentescos(self):
-        return [{"id": 1, "nombre": "Padre"}, {"id": 2, "nombre": "Madre"}, {"id": 3, "nombre": "Abuelo"}]
+sys.path.append(os.path.join(os.path.dirname(__file__))) 
 
-    def buscar_familiar(self, termino):
-        if termino == "1":
-            return {"id": 1, "primer_nombre": "Juan", "primer_apellido": "Pérez", 
-                    "parentesco_id": 1, "parentesco_desc": "Padre", 
-                    "direccion": "Calle Falsa 123", "telefono": "555-1234", 
-                    "segundo_nombre": None, "segundo_apellido": "Sánchez", "tutor": True}
-        return None
-
-    def crear_familiar(self, **kwargs):
-        # Simula éxito
-        return {"id": 3, "message": "Familiar creado."}
-
-    def actualizar_familiar(self, id, **kwargs):
-        return {"id": id, "message": "Familiar actualizado."}
-
-    def eliminar_familiar(self, id):
-        return {"id": id, "message": "Familiar eliminado."}
-
-# ----------------------------------------------------------------------
-# MOCK DE CONTROLADOR (Necesario para la Vista si se ejecuta sola)
-# ----------------------------------------------------------------------
-# Este mock solo necesita los métodos que la vista llama directamente y la estructura MVC.
-class FamiliarControlador:
-    def __init__(self):
-        self.modelo = MockFamiliarModelo() 
-        self.vista = None
-        # print("ADVERTENCIA: Usando Mock FamiliarControlador.")
-
-    def set_view(self, view_instance):
-        self.vista = view_instance
-        
-    def load_initial_data(self):
-        parentescos = self.modelo.obtener_parentescos()
-        self.vista._cargar_parentescos(parentescos)
-        self.vista.display_message("Listo para gestionar Familiares. Use la tabla o el formulario. 🏠", is_success=True)
-
-    # Delegación de manejo de eventos al controlador (métodos dummy para el mock)
-    def handle_crear_familiar(self, *args): self.vista.display_message("Mock: Crear Familiar", True)
-    def handle_buscar_familiar(self, *args): 
-        resultado = self.modelo.buscar_familiar("1")
-        if resultado:
-            self.vista._establecer_datos_formulario(resultado)
-            self.vista.display_message("Mock: Familiar cargado (ID 1)", True)
-        else:
-            self.vista.display_message("Mock: Familiar no encontrado", False)
-            self.vista.limpiar_entradas()
-    def handle_actualizar_familiar(self, *args): self.vista.display_message("Mock: Actualizar Familiar", True)
-    def handle_eliminar_familiar(self, *args): self.vista.display_message("Mock: Eliminar Familiar", True)
-    def handle_cargar_familiar_por_id(self, familiar_id):
-        resultado = self.modelo.buscar_familiar(str(familiar_id))
-        if resultado:
-            self.vista._establecer_datos_formulario(resultado)
-        else:
-            self.vista.display_message("Mock: Error al cargar familiar.", False)
-
-
-# ----------------------------------------------------------------------
-# CLASE DE VISTA ADAPTADA
-# ----------------------------------------------------------------------
+from controllers.familiar_controller import FamiliarControlador 
 
 class FamiliarViewFrame(ctk.CTkFrame):
     """
@@ -91,7 +23,7 @@ class FamiliarViewFrame(ctk.CTkFrame):
         self.controller.set_view(self) # Registrar la vista en el controlador
         
         self.familiar_id_cargado: Optional[int] = None
-        self.parentescos_map: Dict[str, int] = {} # Mapeo Nombre -> ID
+        self.parentescos_map: Dict[str, int] = {} # Mapeo Nombre -> ID (CLAVE)
         
         # Variables de control
         self.nombre_var = ctk.StringVar(self)
@@ -243,7 +175,14 @@ class FamiliarViewFrame(ctk.CTkFrame):
         if clean_search: self.buscar_id_var.set("")
         self.nombre_var.set("")
         self.apellido_var.set("")
-        self.parentesco_var.set("")
+        
+        # --- MODIFICACIÓN CLAVE (Limpieza) ---
+        # Mantener el primer parentesco cargado si existe, sino limpiar.
+        if self.parentescos_map:
+            self.parentesco_var.set(list(self.parentescos_map.keys())[0])
+        else:
+             self.parentesco_var.set("")
+             
         self.telefono_var.set("")
         self.direccion_var.set("")
         self.tutor_var.set(False)
@@ -254,12 +193,14 @@ class FamiliarViewFrame(ctk.CTkFrame):
     def _obtener_datos_formulario(self): 
         """Recolecta los datos de los campos de entrada."""
         parentesco_nombre = self.parentesco_var.get()
+        # --- MODIFICACIÓN CLAVE (Obtener ID) ---
+        # Si el parentesco_nombre no existe en el mapa (ej: vacío), parentesco_id será None
         parentesco_id = self.parentescos_map.get(parentesco_nombre)
         
         return {
             "primer_nombre": self.nombre_var.get().strip(),
             "primer_apellido": self.apellido_var.get().strip(),
-            "parentesco_id": parentesco_id,
+            "parentesco_id": parentesco_id, # Se pasa el ID, no el nombre
             "direccion": self.direccion_var.get().strip(),
             "telefono": self.telefono_var.get().strip(),
             "tutor": self.tutor_var.get()
@@ -273,8 +214,10 @@ class FamiliarViewFrame(ctk.CTkFrame):
         self.parentesco_var.set(data.get("parentesco_desc", "")) # Usa la descripción del parentesco
         self.telefono_var.set(data.get("telefono", ""))
         self.direccion_var.set(data.get("direccion", ""))
-        self.tutor_var.set(data.get("tutor", False))
-        
+        # Convertir el valor de la base de datos (0/1) a booleano
+        tutor_value = data.get("tutor", 0)
+        self.tutor_var.set(bool(int(tutor_value)) if isinstance(tutor_value, (int, float)) else bool(tutor_value))
+
         self.familiar_id_cargado = data.get("id")
         self.buscar_id_var.set(str(data.get("id", ""))) # Carga el ID en el campo de búsqueda
         self._set_btn_state("normal")
