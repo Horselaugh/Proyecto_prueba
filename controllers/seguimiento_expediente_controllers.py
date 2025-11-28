@@ -1,3 +1,4 @@
+# File: seguimiento_expediente_controllers.py
 import sys
 import os
 from typing import List, Optional, Dict, Any
@@ -8,7 +9,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 try:
     from models.seguimiento_expedientes_models import SeguimientoModel
 except ImportError as e:
-    raise ImportError(f"No se pudo importar ArticuloModelo: {e}")
+    # Se ajusta la descripción de error de ArticuloModelo a SeguimientoModel
+    raise ImportError(f"No se pudo importar SeguimientoModel: {e}")
     
     
 class SeguimientoExpedienteControlador:
@@ -16,8 +18,9 @@ class SeguimientoExpedienteControlador:
 
     def __init__(self):
         self.vista = None
+        # Ambos deben usar la misma instancia de SeguimientoModel que usa el Singleton
         self.model = SeguimientoModel()
-        self.exp_model = SeguimientoModel() # Para listar expedientes
+        self.exp_model = self.model # Usar la misma instancia
         self.expediente_map: Dict[str, int] = {} # Mapeo de cadena de ComboBox a ID
         
     def set_view(self, view_instance):
@@ -32,7 +35,8 @@ class SeguimientoExpedienteControlador:
             expedientes = self.exp_model.listar_expedientes()
             options = []
             for exp in expedientes:
-                key = f"{exp['id']} - {exp['titulo']} ({exp['estado']})"
+                # El modelo retorna 'titulo' y 'estado' (aunque sean mockeados)
+                key = f"{exp['id']} - {exp['titulo']} ({exp['estado']})" 
                 self.expediente_map[key] = exp['id']
                 options.append(key)
                 
@@ -44,6 +48,7 @@ class SeguimientoExpedienteControlador:
             
 
         except Exception as e:
+            # El error aquí ahora debería ser menos probable si la conexión funciona
             self.vista.display_message(f"❌ Error al cargar datos iniciales: {str(e)}", is_success=False)
 
     def handle_registrar_seguimiento(self, expediente_str: str, comentario: str):
@@ -63,6 +68,7 @@ class SeguimientoExpedienteControlador:
         try:
             fecha_actual = datetime.now().strftime("%Y-%m-%d")
             
+            # El modelo ahora retorna dict {"status": "success", "id": new_id} o {"status": "error", "message": error}
             resultado = self.model.registrar_seguimiento(expediente_id, comentario, fecha=fecha_actual)
             
             if resultado.get("status") == "success":
@@ -100,6 +106,3 @@ class SeguimientoExpedienteControlador:
     def get_expediente_id_from_str(self, expediente_str: str) -> Optional[int]:
         """Obtiene el ID del expediente a partir de la cadena seleccionada."""
         return self.expediente_map.get(expediente_str)
-    
-
-

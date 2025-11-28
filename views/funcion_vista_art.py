@@ -2,31 +2,6 @@ import customtkinter as ctk
 from tkinter import messagebox
 from controllers.articulo_controller import ArticuloControlador 
 
-    
-class ArticuloControlador:
-    def __init__(self):
-        self.modelo = ArticuloControlador() 
-        self.vista = None
-
-    def set_view(self, view_instance):
-        self.vista = view_instance
-        
-    def load_initial_data(self):
-        self.vista.display_message("Listo para gestionar Artículos LOPNNA. Use el campo de búsqueda para empezar. 🔎", is_success=True)
-
-    # Delegación de manejo de eventos al controlador (métodos dummy para el mock)
-    def handle_crear_articulo(self, *args): self.vista.display_message("Mock: Crear artículo", True)
-    def handle_buscar_articulo(self, termino): 
-        resultado = self.modelo.buscar_articulo(termino)
-        if resultado:
-            self.vista._establecer_datos_formulario(resultado)
-        else:
-            self.vista.display_message("Mock: Artículo no encontrado", False)
-            self.vista.limpiar_entradas()
-    def handle_modificar_articulo(self, *args): self.vista.display_message("Mock: Modificar artículo", True)
-    def handle_eliminar_articulo(self, *args): self.vista.display_message("Mock: Eliminar artículo", True)
-
-
 # ----------------------------------------------------------------------
 # CLASE DE VISTA ADAPTADA
 # ----------------------------------------------------------------------

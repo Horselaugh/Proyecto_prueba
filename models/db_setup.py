@@ -3,8 +3,9 @@ import os
 from sqlite3 import Error
 
 class CreateDatabase:
-    
+
     def __init__(self, db_archivo=None):
+        
         # Si no se especifica archivo, usar la carpeta models
         if db_archivo is None:
             # Obtener el directorio actual del archivo
@@ -14,6 +15,7 @@ class CreateDatabase:
         
         self.db_archivo = db_archivo
         self.conexion = None
+
         
         # Crear la carpeta si no existe
         os.makedirs(os.path.dirname(self.db_archivo), exist_ok=True)
@@ -119,7 +121,7 @@ CREATE TABLE IF NOT EXISTS personal(
 ---------------------------------
 CREATE TABLE IF NOT EXISTS usuario(
     persona_id INTEGER PRIMARY KEY,
-    nombre_usuario TEXT NOT NULL UNIQUE,
+    nombre_usuario TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
 );

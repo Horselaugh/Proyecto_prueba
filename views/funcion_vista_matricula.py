@@ -12,17 +12,12 @@ from controllers.matricula_controller import MatriculaControlador
 # ----------------------------------------------------------------------
 
 class MatriculaViewFrame(ctk.CTkFrame):
-    """
-    Vista para el módulo de gestión de Matrículas. 
-    Hereda de CTkFrame para ser cargado en el panel de contenido de MenuApp.
-    """
-    
-    # Se define la dependencia del controlador real
+
     def __init__(self, master, controller: MatriculaControlador):
         super().__init__(master, corner_radius=0, fg_color="transparent") 
         
         self.controller = controller 
-        self.controller.set_view(self) # Enlaza la vista al controlador
+        self.controller.set_view(self) 
         
         # Mapeos
         self.nna_map: Dict[str, int] = {} # Nombre NNA -> ID
@@ -35,14 +30,14 @@ class MatriculaViewFrame(ctk.CTkFrame):
         self.fecha_matricula_var = ctk.StringVar(self, value=datetime.date.today().isoformat())
         self.activa_var = ctk.BooleanVar(self, value=True)
         
-        self.matricula_cargada_id: Optional[Dict[str, int]] = None # {'nna_id': x, 'unidad_id': y}
+        # ID compuesto de la matrícula cargada
+        self.matricula_cargada_id: Optional[Dict[str, int]] = None 
         
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(2, weight=1)
+        self.rowconfigure(2, weight=1) # Contenedor principal scrollable
         
         self._configurar_interfaz()
 
-    # MÉTODO CLAVE: Inicia la carga de datos
     def show(self):
         """Llamado por la aplicación principal, invoca la carga de datos iniciales del controlador."""
         self.controller.load_initial_data() 
@@ -50,7 +45,7 @@ class MatriculaViewFrame(ctk.CTkFrame):
     def _configurar_interfaz(self):
         """Configura la interfaz gráfica (Diseño General CRUD)."""
         
-        # Título y Mensaje
+        # 1. Título y Mensaje
         self.title_label = ctk.CTkLabel(self, text="🎓 GESTIÓN DE MATRÍCULAS", 
                                         font=ctk.CTkFont(size=24, weight="bold"))
         self.title_label.grid(row=0, column=0, pady=(20, 10), padx=20, sticky="ew")
@@ -58,32 +53,45 @@ class MatriculaViewFrame(ctk.CTkFrame):
         self.message_label = ctk.CTkLabel(self, text="", font=ctk.CTkFont(size=14), text_color="yellow")
         self.message_label.grid(row=1, column=0, pady=5, padx=20, sticky="ew")
 
-        # Contenedor principal para el formulario
-        main_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=10)
-        main_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
-        main_frame.columnconfigure((0, 1), weight=1)
+        # 2. Contenedor principal scrollable
+        # Se usa CTkScrollableFrame como en PersonalViewFrame
+        scroll_frame = ctk.CTkScrollableFrame(self, fg_color="#111111", corner_radius=10, label_text="DATOS DE LA MATRÍCULA")
+        scroll_frame.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        scroll_frame.columnconfigure((0, 1), weight=1)
         
-        # Dropdowns de selección
-        self._create_selection_widgets(main_frame, 0, "NNA:", self.nna_var)
-        self._create_selection_widgets(main_frame, 1, "Unidad Educativa:", self.unidad_var)
+        current_row = 0
         
-        # Separador
-        ctk.CTkFrame(main_frame, height=2, fg_color="#555555").grid(row=2, column=0, columnspan=2, sticky="ew", padx=20, pady=(10, 10))
+        # --- Sección de Búsqueda (Implícita por Comboboxes) ---
+        # Fila 0: NNA (Combobox)
+        self._add_field(scroll_frame, current_row, 0, "NNA (Niño/a o Adolescente):", self.nna_var, is_combo="nna")
+        current_row += 2
         
-        # Campos de Matrícula (Fila 3)
-        self._add_field(main_frame, 3, 0, "Grado:", self.grado_var, is_combo=True)
-        self._add_field(main_frame, 3, 1, "Fecha Matrícula (YYYY-MM-DD):", self.fecha_matricula_var)
-
-        # Campo Activa (Fila 4)
-        ctk.CTkCheckBox(main_frame, text="Matrícula Activa", variable=self.activa_var, 
-                        font=("Arial", 14)).grid(row=4, column=0, sticky="w", padx=20, pady=(10, 20))
-
+        # Fila 1: Unidad Educativa (Combobox)
+        self._add_field(scroll_frame, current_row, 0, "Unidad Educativa:", self.unidad_var, is_combo="unidad")
+        current_row += 2
+        
+        # Separador para Campos de Matrícula
+        ctk.CTkFrame(scroll_frame, height=2, fg_color="#555555").grid(row=current_row, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 10))
+        current_row += 1
+        
+        ctk.CTkLabel(scroll_frame, text="DETALLES DE LA MATRÍCULA", font=ctk.CTkFont(size=16, weight="bold")).grid(row=current_row, column=0, columnspan=2, padx=10, pady=(5, 5), sticky="w")
+        current_row += 1
+        
+        # Fila 2: Grado y Fecha
+        self._add_field(scroll_frame, current_row, 0, "Grado:", self.grado_var, is_combo="grado")
+        self._add_field(scroll_frame, current_row, 1, "Fecha Matrícula (YYYY-MM-DD):", self.fecha_matricula_var)
+        current_row += 2
+        
+        # Fila 3: Activa
+        ctk.CTkCheckBox(scroll_frame, text="Matrícula Activa", variable=self.activa_var, 
+                        font=("Arial", 14)).grid(row=current_row, column=0, sticky="w", padx=10, pady=(10, 20))
+        current_row += 1
 
         # Frame de Botones
-        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.grid(row=5, column=0, columnspan=2, padx=20, pady=(0, 20), sticky="ew")
+        button_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        button_frame.grid(row=current_row, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="ew")
         
-        # Botones
+        # Botones (Misma disposición que PersonalViewFrame)
         ctk.CTkButton(button_frame, text="➕ Crear Matrícula", command=self._handle_crear_matricula, height=45, 
                       fg_color="#2ecc71", hover_color="#27ae60", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
         
@@ -97,38 +105,33 @@ class MatriculaViewFrame(ctk.CTkFrame):
         
         ctk.CTkButton(button_frame, text="🧹 Limpiar", command=self.limpiar_entradas, height=45, 
                       fg_color="#95a5a6", hover_color="#7f8c8d", font=ctk.CTkFont(size=16, weight="bold")).pack(side="left", expand=True, fill="x", padx=5)
-        
 
-    def _create_selection_widgets(self, parent, row_offset, label_text, var):
-        """Crea la etiqueta y el ComboBox de NNA o Unidad Educativa."""
-        ctk.CTkLabel(parent, text=label_text, font=("Arial", 14)).grid(row=row_offset*2, column=0, sticky="w", padx=20, pady=(20, 5))
+    def _add_field(self, parent, row, column, label_text, var, is_combo=None, is_password=False, columnspan=1):
+        """Función auxiliar adaptada para añadir etiquetas y campos de entrada/combobox (similar a PersonalViewFrame)."""
+        ctk.CTkLabel(parent, text=label_text, font=("Arial", 14)).grid(row=row, column=column, columnspan=columnspan, sticky="w", padx=10, pady=(10, 5))
         
-        combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40, width=300)
-        combo.grid(row=row_offset*2 + 1, column=0, sticky="ew", padx=20, pady=(0, 10))
-        
-        # Vincular al evento de cambio para activar la búsqueda automática
-        def _on_change(*args):
-            # El evento se lanza incluso al establecer el valor inicial, por eso el filtro es clave.
-            if var.get() not in ["Seleccionar NNA", "Seleccionar Unidad", "Cargando..."]:
-                self._handle_buscar_matricula()
-        
-        var.trace_add("write", _on_change)
-        
-        if "NNA" in label_text:
+        combo = None
+        if is_combo == "nna":
+            combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40)
             self.nna_combo = combo
-        elif "Unidad" in label_text:
+        elif is_combo == "unidad":
+            combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40)
             self.unidad_combo = combo
-            
-    def _add_field(self, parent, row, column, label_text, var, is_combo=False):
-        """Función auxiliar para añadir etiquetas y campos de entrada/combobox."""
-        ctk.CTkLabel(parent, text=label_text, font=("Arial", 14)).grid(row=row, column=column, sticky="w", padx=20, pady=(10, 5))
+        elif is_combo == "grado":
+            combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40)
+            self.grado_combo = combo
         
-        if is_combo:
-            self.grado_combo = ctk.CTkComboBox(parent, variable=var, values=["Cargando..."], height=40)
-            self.grado_combo.grid(row=row + 1, column=column, sticky="ew", padx=20, pady=(0, 10))
+        if combo:
+             combo.grid(row=row + 1, column=column, columnspan=columnspan, sticky="ew", padx=10, pady=(0, 5))
+             # Vincular al evento de cambio para NNA y Unidad para activar la búsqueda automática
+             if is_combo in ["nna", "unidad"]:
+                def _on_change(*args):
+                    if var.get() not in ["Seleccionar NNA", "Seleccionar Unidad", "Cargando..."]:
+                        self._handle_buscar_matricula()
+                var.trace_add("write", _on_change)
         else:
-            ctk.CTkEntry(parent, textvariable=var, height=40).grid(row=row + 1, column=column, sticky="ew", padx=20, pady=(0, 10))
-
+            show_char = "*" if is_password else None
+            ctk.CTkEntry(parent, textvariable=var, height=40, show=show_char).grid(row=row + 1, column=column, columnspan=columnspan, sticky="ew", padx=10, pady=(0, 5))
 
     # ----------------------------------------------------------------------
     # Métodos de Eventos (Delegación al Controlador)

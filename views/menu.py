@@ -149,7 +149,6 @@ class MenuInicioFrame(BaseViewFrame):
         container = ctk.CTkFrame(self, fg_color="transparent")
         container.place(relx=0.5, rely=0.5, anchor="center")
         
-        # --- Carga y Muestra de la Imagen ---
         try:
             # 1. Definir la ruta de la imagen (asume que está en el mismo directorio)
             image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DAxrdkeW0AEs7wT.jpg")
